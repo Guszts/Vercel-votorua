@@ -67,6 +67,12 @@ create table if not exists public.orders (
   created_at timestamptz default now()
 );
 
+do $$ begin
+  alter table public.orders
+    add constraint orders_user_id_profiles_fkey
+    foreign key (user_id) references public.profiles(id) on delete cascade;
+exception when duplicate_object then null; end $$;
+
 -- 7. Testimonials
 create table if not exists public.testimonials (
   id uuid primary key default gen_random_uuid(),
@@ -75,6 +81,13 @@ create table if not exists public.testimonials (
   content text,
   created_at timestamptz default now()
 );
+
+-- explicit FK to profiles for PostgREST embedded selects (profiles!inner)
+do $$ begin
+  alter table public.testimonials
+    add constraint testimonials_user_id_profiles_fkey
+    foreign key (user_id) references public.profiles(id) on delete cascade;
+exception when duplicate_object then null; end $$;
 
 -- 8. Settings (single row keyed by 'main')
 create table if not exists public.app_settings (

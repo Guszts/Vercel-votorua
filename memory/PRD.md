@@ -46,18 +46,18 @@ Atualizar o app do **Restaurante e Marmitaria Vitória** (sem mudar design/tipog
 └── supabase_schema.sql       Schema + RLS + triggers + buckets (aplicar no Supabase)
 ```
 
-## Status de implementação (19/04/2026)
+## Status de implementação (19/04/2026 — atualizado)
 ### Concluído ✅
 - Infraestrutura (frontend em `/app/frontend`, backend FastAPI mínimo, env vars)
 - Tipografia Outfit + design arredondado preservando paleta vermelho/stone existente
 - PWA "Vitória" — manifest, service worker, ícones via `/logo.png`; logo NUNCA dentro do app
-- Bottom navigation animada com 4 abas + badge de carrinho
+- Bottom navigation **sticky (grudada no rodapé, não mais flutuante)** com 4 abas + badge de carrinho + indicador ativo animado
 - Tela de autenticação (email/senha + botão Google) via Supabase
 - Home: hero existente + filtros de categoria + busca + ordenação
 - Cards de produto com botões "Detalhes" + "Adicionar" lado a lado
 - Página detalhada de produto com customização de ingredientes (cobra preço extra, respeita estoque)
 - Histórico com abas Carrinho/Pedidos (cria pedido no Supabase)
-- Depoimentos: listagem, filtros por estrelas, busca, compositor (estrelas obrigatórias, texto opcional), página detalhada
+- Depoimentos: listagem, filtros por estrelas, busca, compositor (estrelas obrigatórias, texto opcional), página detalhada — **FK explícita entre testimonials.user_id e profiles.id adicionada (fix PGRST200)**
 - Perfil: upload avatar (Supabase Storage), edição apelido/@username, programa fidelidade (níveis Bronze/Prata/Ouro), atalhos para admin/logout, preview das configurações do estabelecimento
 - Admin Panel reformulado:
   - Produtos (CRUD + upload imagem Supabase + badge + cor do badge + estoque + IA de descrição/badge via backend)
@@ -66,14 +66,23 @@ Atualizar o app do **Restaurante e Marmitaria Vitória** (sem mudar design/tipog
   - Métricas (totais de usuários, pedidos, receita, depoimentos, avaliação média)
   - Ajustes (localização, horários, tempo entrega/retirada, métodos de pagamento)
   - Ingredientes por produto (adicionar/remover/default/preço/estoque)
+- **Fundo branco (stone-50) em todas as páginas** (removido texto escuro sobre fundo escuro)
 - ScrollToHero: cada troca de rota leva ao topo da página
 - Animações Motion em entradas, listas, modais e bottom nav
 - Endpoints backend: `/api/health`, `/api/ai/describe`, `/api/ai/badge`, `/api/ai/reply-testimonial` (Emergent LLM Key já configurada)
 
-### Pré-requisitos do usuário (obrigatório para o app funcionar 100%)
-1. **Aplicar o schema SQL**: abra Supabase > SQL Editor > cole `/app/supabase_schema.sql` > Run. Isto cria tabelas, RLS, triggers, buckets e seed de produtos.
-2. **(Opcional) Google OAuth**: Supabase > Authentication > Providers > Google > habilitar com seu Client ID/Secret do Google Cloud. Enquanto não habilitar, o botão Google mostra mensagem explicando.
-3. **Criar o admin**: cadastre-se na tela de login com `gustavomonteiro09g@gmail.com` (a trigger promove automaticamente).
+### Supabase aplicado ✅
+- Schema SQL aplicado via Management API (PAT) — 75 statements passaram, 11 produtos seedados, 3 buckets criados (avatars, product-images, site-images), RLS + triggers + FKs ativas
+- Admin criado: `gustavomonteiro09g@gmail.com` (senha `Vitoria123!`) promovido automaticamente a `role='admin'`
+- Cliente de teste: `cliente@vitoria.test` (senha `Teste123!`)
+- 2 depoimentos de seed inseridos para validação
+
+### Testes E2E ✅
+- Backend: 100% verde (health + 3 endpoints IA + PWA assets + manifest)
+- Frontend: 100% (após fix FK) — login admin+cliente, navegação entre abas, carrinho local, perfil, admin panel (5 abas), depoimentos listando corretamente
+
+### Pendências (do usuário, opcional)
+1. **Google OAuth próprio**: criar credenciais no Google Cloud + configurar em Supabase > Authentication > Providers > Google (instruções em `/app/SETUP.md` e na conversa). Enquanto não configurado, botão Google mostra erro explicativo.
 
 ## Backlog / Próximas evoluções
 - [P1] Realtime subscriptions para atualizar pedidos e depoimentos ao vivo

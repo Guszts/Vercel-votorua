@@ -1,27 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "motion/react";
-import {
-  ArrowLeft,
-  Plus,
-  Trash2,
-  Save,
-  Image as ImageIcon,
-  Shield,
-  Users,
-  BarChart3,
-  Utensils,
-  Settings2,
-  Sparkles,
-  Wand2,
-} from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Save, Image as ImageIcon, Shield, Users, ChartBar as BarChart3, Utensils, Settings2, Sparkles, Wand as Wand2, MessageSquareHeart, Star, Reply } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useAppContext } from "../../context/AppContext";
 import { supabase, BACKEND_URL } from "../../lib/supabase";
 import type { Ingredient, Product, Profile, AppSettings } from "../../lib/types";
 import { cn } from "../../lib/utils";
 
-type Tab = "produtos" | "imagens" | "usuarios" | "metricas" | "ajustes";
+type Tab = "produtos" | "imagens" | "usuarios" | "depoimentos" | "metricas" | "ajustes";
 
 export default function AdminPanel() {
   const { isAdmin } = useAuth();
@@ -69,6 +56,7 @@ export default function AdminPanel() {
             { id: "produtos", label: "Produtos", icon: Utensils },
             { id: "imagens", label: "Imagens", icon: ImageIcon },
             { id: "usuarios", label: "Usuários", icon: Users },
+            { id: "depoimentos", label: "Depoimentos", icon: MessageSquareHeart },
             { id: "metricas", label: "Métricas", icon: BarChart3 },
             { id: "ajustes", label: "Ajustes", icon: Settings2 },
           ].map((t) => {
@@ -96,6 +84,7 @@ export default function AdminPanel() {
         {tab === "produtos" && <ProductsTab products={products} refresh={refreshProducts} />}
         {tab === "imagens" && <ImagesTab />}
         {tab === "usuarios" && <UsersTab />}
+        {tab === "depoimentos" && <TestimonialsTab />}
         {tab === "metricas" && <MetricsTab />}
         {tab === "ajustes" && <SettingsTab settings={settings} save={saveSettings} />}
       </main>
@@ -746,6 +735,224 @@ function UsersTab() {
           </p>
         )}
       </div>
+    </div>
+  );
+}
+
+// ------------------------------------------------------------
+// TESTIMONIALS
+// ------------------------------------------------------------
+interface AdminTestimonial {
+  id: string;
+  user_id: string;
+  rating: number;
+  content: string | null;
+  created_at: string;
+  author: { nickname: string | null; full_name: string | null; avatar_url: string | null; email?: string } | null;
+}
+
+function TestimonialsTab() {
+  const [list, setList] = useState<AdminTestimonial[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [replyTarget, setReplyTarget] = useState<AdminTestimonial | null>(null);
+  const [replyText, setReplyText] = useState("");
+  const [aiLoading, setAiLoading] = useState<string | null>(null);
+  const [filterRating, setFilterRating] = useState<number | "all">("all");
+
+  const load = async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from("testimonials")
+      .select("id, user_id, rating, content, created_at, profiles!inner(nickname, full_name, avatar_url)")
+      .order("created_at", { ascending: false });
+    if (data) {
+      setList(
+        data.map((t: any) => ({
+          id: t.id,
+          user_id: t.user_id,
+          rating: t.rating,
+          content: t.content,
+          created_at: t.created_at,
+          author: t.profiles,
+        }))
+      );
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const remove = async (id: string) => {
+    if (!confirm("Excluir este depoimento?")) return;
+    const { error } = await supabase.from("testimonials").delete().eq("id", id);
+    if (error) return alert(error.message);
+    await load();
+  };
+
+  const aiReply = async (t: AdminTestimonial) => {
+    setAiLoading(t.id);
+    try {
+      const r = await fetch(`${BACKEND_URL}/api/ai/reply-testimonial`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          author: t.author?.nickname || t.author?.full_name || "Cliente",
+          rating: t.rating,
+          content: t.content,
+        }),
+      });
+      const j = await r.json();
+      if (j.reply) setReplyText(j.reply);
+    } catch { /* noop */ }
+    setAiLoading(null);
+  };
+
+  const filtered = filterRating === "all" ? list : list.filter((t) => t.rating === filterRating);
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-2xl font-black text-stone-900">Depoimentos</h2>
+        <span className="text-sm font-bold text-stone-500">{list.length} no total</span>
+      </div>
+
+      <div className="flex items-center gap-2 mb-4 overflow-x-auto pb-1 no-scrollbar">
+        {(["all", 5, 4, 3, 2, 1] as const).map((v) => (
+          <button
+            key={v}
+            onClick={() => setFilterRating(v)}
+            className={cn(
+              "px-3 py-1.5 rounded-full font-bold text-xs shrink-0 transition",
+              filterRating === v
+                ? "bg-stone-900 text-white"
+                : "bg-white border border-stone-200 text-stone-600 hover:border-stone-300"
+            )}
+          >
+            {v === "all" ? "Todos" : `${v}★`}
+          </button>
+        ))}
+      </div>
+
+      {loading && <p className="text-center py-8 text-stone-500 font-medium">Carregando...</p>}
+
+      <div className="space-y-3">
+        {filtered.map((t) => (
+          <motion.div
+            key={t.id}
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white rounded-3xl border border-stone-100 p-5"
+            data-testid={`admin-testimonial-${t.id}`}
+          >
+            <div className="flex items-start gap-4">
+              <div className="w-11 h-11 rounded-full bg-red-600 text-white font-black flex items-center justify-center overflow-hidden shrink-0">
+                {t.author?.avatar_url ? (
+                  <img src={t.author.avatar_url} className="w-full h-full object-cover" />
+                ) : (
+                  (t.author?.nickname || t.author?.full_name || "?")[0]?.toUpperCase()
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="font-black text-stone-900 truncate">
+                    {t.author?.nickname || t.author?.full_name || "Cliente"}
+                  </p>
+                  <div className="flex items-center gap-0.5">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <Star
+                        key={i}
+                        className={cn(
+                          "w-3.5 h-3.5",
+                          i < t.rating ? "text-amber-400 fill-amber-400" : "text-stone-200"
+                        )}
+                      />
+                    ))}
+                  </div>
+                  <span className="text-[10px] text-stone-400 font-bold uppercase tracking-widest">
+                    {new Date(t.created_at).toLocaleDateString("pt-BR")}
+                  </span>
+                </div>
+                {t.content && (
+                  <p className="text-stone-600 text-sm mt-1 leading-relaxed">"{t.content}"</p>
+                )}
+              </div>
+              <div className="flex flex-col gap-2 shrink-0">
+                <button
+                  onClick={() => { setReplyTarget(t); setReplyText(""); }}
+                  className="bg-stone-100 text-stone-700 font-bold text-xs rounded-full px-3 py-1.5 flex items-center gap-1 hover:bg-stone-200 transition"
+                >
+                  <Reply className="w-3 h-3" /> Responder
+                </button>
+                <button
+                  onClick={() => { setReplyTarget(t); aiReply(t); }}
+                  disabled={aiLoading === t.id}
+                  className="bg-amber-100 text-amber-700 font-bold text-xs rounded-full px-3 py-1.5 flex items-center gap-1 disabled:opacity-60 hover:bg-amber-200 transition"
+                >
+                  <Sparkles className="w-3 h-3" /> {aiLoading === t.id ? "..." : "IA reply"}
+                </button>
+                <button
+                  onClick={() => remove(t.id)}
+                  className="bg-red-50 text-red-600 font-bold text-xs rounded-full px-3 py-1.5 flex items-center gap-1 hover:bg-red-100 transition"
+                  data-testid={`admin-del-testimonial-${t.id}`}
+                >
+                  <Trash2 className="w-3 h-3" /> Excluir
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        ))}
+        {!loading && filtered.length === 0 && (
+          <p className="text-center py-8 text-stone-500 font-medium">Nenhum depoimento.</p>
+        )}
+      </div>
+
+      {replyTarget && (
+        <div className="fixed inset-0 z-[90] bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center">
+          <div className="bg-white w-full sm:max-w-lg rounded-t-[32px] sm:rounded-[32px] p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-black text-stone-900">Responder depoimento</h3>
+              <button
+                onClick={() => setReplyTarget(null)}
+                className="w-9 h-9 rounded-full bg-stone-100 hover:bg-stone-200 flex items-center justify-center font-bold"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="text-stone-500 text-sm font-medium mb-3">
+              Resposta para <strong>{replyTarget.author?.nickname || replyTarget.author?.full_name || "Cliente"}</strong>
+            </p>
+            <textarea
+              value={replyText}
+              onChange={(e) => setReplyText(e.target.value)}
+              rows={4}
+              placeholder="Escreva sua resposta ou clique em IA reply para gerar automaticamente..."
+              className="w-full border-2 border-stone-200 focus:border-red-600 rounded-2xl px-4 py-3 font-medium resize-none"
+            />
+            <div className="flex gap-2 mt-3">
+              <button
+                onClick={() => { aiReply(replyTarget); }}
+                disabled={aiLoading === replyTarget.id}
+                className="bg-amber-100 text-amber-700 font-bold text-sm rounded-2xl px-4 py-2.5 flex items-center gap-1.5 disabled:opacity-60 hover:bg-amber-200 transition"
+              >
+                <Sparkles className="w-4 h-4" /> {aiLoading === replyTarget.id ? "Gerando..." : "Gerar com IA"}
+              </button>
+              <button
+                onClick={() => {
+                  if (replyText.trim()) {
+                    navigator.clipboard?.writeText(replyText).catch(() => {});
+                    alert("Resposta copiada! Cole onde desejar (WhatsApp, Instagram, etc).");
+                  }
+                  setReplyTarget(null);
+                }}
+                disabled={!replyText.trim()}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white font-black rounded-2xl px-4 py-2.5 disabled:opacity-60 transition"
+              >
+                Copiar resposta
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

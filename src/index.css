@@ -1,0 +1,12 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --color-vitoria-footer: #fdf5f3;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+}

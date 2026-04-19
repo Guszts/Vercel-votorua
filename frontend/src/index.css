@@ -1,0 +1,38 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Outfit", ui-sans-serif, system-ui, sans-serif;
+  --color-vitoria-footer: #fdf5f3;
+  --radius-card: 24px;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    font-family: var(--font-sans);
+    /* leave room for floating bottom nav */
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/* Utility: hide scrollbar on horizontal chip scrollers */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+.safe-bottom {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.25rem);
+}
+
+/* Smooth fade-in for page wraps */
+@keyframes pageIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Lists / sticky elements extra bottom padding to clear floating bottom nav */
+main, .page-content { padding-bottom: 6rem; }

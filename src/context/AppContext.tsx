@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { Product, initialProducts } from "../data/products";
 
+export type ProductCategory = "marmitas" | "fitness" | "carnes" | "bebidas" | "sobremesas" | "pastel";
+
 export interface SiteImages {
   heroSlides: string[];
   bannerBg: string;
@@ -28,9 +30,41 @@ const defaultSiteImages: SiteImages = {
   ],
 };
 
-interface CartItem {
+export interface CartItem {
   product: Product;
   quantity: number;
+}
+
+export interface Order {
+  id: string;
+  items: CartItem[];
+  total: number;
+  status: "pendente" | "preparando" | "entregando" | "entregue" | "cancelado";
+  createdAt: Date;
+  address?: string;
+  phone?: string;
+}
+
+export interface Testimonial {
+  id: string;
+  userId: string;
+  userName: string;
+  userHandle: string;
+  userAvatar: string;
+  rating: number;
+  text: string;
+  createdAt: Date;
+}
+
+export interface UserProfile {
+  id: string;
+  name: string;
+  handle: string;
+  avatar: string;
+  phone?: string;
+  address?: string;
+  loyaltyPoints: number;
+  memberSince: Date;
 }
 
 interface AppContextType {
@@ -40,6 +74,7 @@ interface AppContextType {
   addToCart: (product: Product) => void;
   removeFromCart: (productId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
+  clearCart: () => void;
   cartTotal: number;
   cartCount: number;
   isCartOpen: boolean;
@@ -50,9 +85,51 @@ interface AppContextType {
   setIsAdmin: (isAdmin: boolean) => void;
   siteImages: SiteImages;
   setSiteImages: React.Dispatch<React.SetStateAction<SiteImages>>;
+  // Orders
+  orders: Order[];
+  addOrder: (order: Omit<Order, "id" | "createdAt">) => void;
+  // Testimonials
+  testimonials: Testimonial[];
+  addTestimonial: (testimonial: Omit<Testimonial, "id" | "createdAt">) => void;
+  // User Profile
+  userProfile: UserProfile;
+  updateUserProfile: (profile: Partial<UserProfile>) => void;
+  addLoyaltyPoints: (points: number) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
+
+const defaultUserProfile: UserProfile = {
+  id: "user-1",
+  name: "Cliente",
+  handle: "cliente",
+  avatar: "https://readdy.ai/api/search-image?query=neutral+avatar+silhouette+profile+picture&width=200&height=200&seq=99&orientation=squarish",
+  loyaltyPoints: 0,
+  memberSince: new Date(),
+};
+
+const defaultTestimonials: Testimonial[] = [
+  {
+    id: "test-1",
+    userId: "user-carlos",
+    userName: "Carlos Eduardo",
+    userHandle: "carloseduardo",
+    userAvatar: "https://readdy.ai/api/search-image?query=portrait+young+brazilian+man+smiling&width=200&height=200&seq=14&orientation=squarish",
+    rating: 5,
+    text: "Moro sozinho e a Marmitaria Vitória salvou a minha vida. O tempero é maravilhoso, lembra comida de mãe. E a entrega sempre no horário!",
+    createdAt: new Date("2024-01-15"),
+  },
+  {
+    id: "test-2",
+    userId: "user-mariana",
+    userName: "Mariana Silva",
+    userHandle: "marisilva",
+    userAvatar: "https://readdy.ai/api/search-image?query=portrait+young+brazilian+woman+smiling&width=200&height=200&seq=15&orientation=squarish",
+    rating: 5,
+    text: "O churrasco no kilo no fim de semana é de lei aqui em casa. Picanha sempre no ponto, farofa perfeita. Melhor custo-benefício de Campo Novo.",
+    createdAt: new Date("2024-02-20"),
+  },
+];
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [products, setProducts] = useState<Product[]>(initialProducts);
@@ -61,8 +138,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [testimonials, setTestimonials] = useState<Testimonial[]>(defaultTestimonials);
+  const [userProfile, setUserProfile] = useState<UserProfile>(defaultUserProfile);
 
-  // Load from local storage for persistence during modifications
+  // Load from local storage for persistence
   useEffect(() => {
     const savedProducts = localStorage.getItem("vitoria_products");
     if (savedProducts) {
@@ -80,6 +160,41 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         console.error("Failed to parse saved images");
       }
     }
+    const savedOrders = localStorage.getItem("vitoria_orders");
+    if (savedOrders) {
+      try {
+        const parsed = JSON.parse(savedOrders);
+        setOrders(parsed.map((o: Order) => ({ ...o, createdAt: new Date(o.createdAt) })));
+      } catch (e) {
+        console.error("Failed to parse saved orders");
+      }
+    }
+    const savedTestimonials = localStorage.getItem("vitoria_testimonials");
+    if (savedTestimonials) {
+      try {
+        const parsed = JSON.parse(savedTestimonials);
+        setTestimonials(parsed.map((t: Testimonial) => ({ ...t, createdAt: new Date(t.createdAt) })));
+      } catch (e) {
+        console.error("Failed to parse saved testimonials");
+      }
+    }
+    const savedProfile = localStorage.getItem("vitoria_user_profile");
+    if (savedProfile) {
+      try {
+        const parsed = JSON.parse(savedProfile);
+        setUserProfile({ ...parsed, memberSince: new Date(parsed.memberSince) });
+      } catch (e) {
+        console.error("Failed to parse saved profile");
+      }
+    }
+    const savedCart = localStorage.getItem("vitoria_cart");
+    if (savedCart) {
+      try {
+        setCart(JSON.parse(savedCart));
+      } catch (e) {
+        console.error("Failed to parse saved cart");
+      }
+    }
   }, []);
 
   useEffect(() => {
@@ -89,6 +204,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     localStorage.setItem("vitoria_site_images", JSON.stringify(siteImages));
   }, [siteImages]);
+
+  useEffect(() => {
+    localStorage.setItem("vitoria_orders", JSON.stringify(orders));
+  }, [orders]);
+
+  useEffect(() => {
+    localStorage.setItem("vitoria_testimonials", JSON.stringify(testimonials));
+  }, [testimonials]);
+
+  useEffect(() => {
+    localStorage.setItem("vitoria_user_profile", JSON.stringify(userProfile));
+  }, [userProfile]);
+
+  useEffect(() => {
+    localStorage.setItem("vitoria_cart", JSON.stringify(cart));
+  }, [cart]);
 
   const addToCart = (product: Product) => {
     setCart((prev) => {
@@ -121,12 +252,52 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     );
   };
 
+  const clearCart = () => {
+    setCart([]);
+  };
+
   const cartTotal = cart.reduce(
     (total, item) => total + item.product.price * item.quantity,
     0
   );
 
   const cartCount = cart.reduce((count, item) => count + item.quantity, 0);
+
+  const addOrder = (order: Omit<Order, "id" | "createdAt">) => {
+    const newOrder: Order = {
+      ...order,
+      id: `order-${Date.now()}`,
+      createdAt: new Date(),
+    };
+    setOrders((prev) => [newOrder, ...prev]);
+    // Add loyalty points (1 point per R$10 spent)
+    const points = Math.floor(order.total / 10);
+    if (points > 0) {
+      addLoyaltyPoints(points);
+    }
+  };
+
+  const addTestimonial = (testimonial: Omit<Testimonial, "id" | "createdAt">) => {
+    const newTestimonial: Testimonial = {
+      ...testimonial,
+      id: `test-${Date.now()}`,
+      createdAt: new Date(),
+    };
+    setTestimonials((prev) => [newTestimonial, ...prev]);
+    // Add loyalty points for leaving a review
+    addLoyaltyPoints(5);
+  };
+
+  const updateUserProfile = (profile: Partial<UserProfile>) => {
+    setUserProfile((prev) => ({ ...prev, ...profile }));
+  };
+
+  const addLoyaltyPoints = (points: number) => {
+    setUserProfile((prev) => ({
+      ...prev,
+      loyaltyPoints: prev.loyaltyPoints + points,
+    }));
+  };
 
   return (
     <AppContext.Provider
@@ -137,6 +308,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         addToCart,
         removeFromCart,
         updateQuantity,
+        clearCart,
         cartTotal,
         cartCount,
         isCartOpen,
@@ -147,6 +319,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setIsAdmin,
         siteImages,
         setSiteImages,
+        orders,
+        addOrder,
+        testimonials,
+        addTestimonial,
+        userProfile,
+        updateUserProfile,
+        addLoyaltyPoints,
       }}
     >
       {children}

@@ -9,4 +9,12 @@
   html {
     scroll-behavior: smooth;
   }
+  
+  .safe-area-pb {
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+  
+  .pb-bottom-nav {
+    padding-bottom: calc(4rem + env(safe-area-inset-bottom, 0));
+  }
 }

@@ -1,38 +1,40 @@
 import { useState, useEffect } from "react";
 import { Quote } from "lucide-react";
 import { cn } from "../../../lib/utils";
-
-const testimonials = [
-  {
-    text: "Moro sozinho e a Marmitaria Vitória salvou a minha vida. O tempero é maravilhoso, lembra comida de mãe. E a entrega sempre no horário!",
-    name: "Carlos Eduardo",
-    role: "Cliente fiel há 1 ano",
-    avatar: "https://images.unsplash.com/photo-1599566150163-29194dcaad36?q=80&w=256&auto=format&fit=crop"
-  },
-  {
-    text: "O churrasco no kilo no fim de semana é de lei aqui em casa. Picanha sempre no ponto, farofa perfeita. Melhor custo-benefício de Campo Novo.",
-    name: "Mariana Silva",
-    role: "Pede todo final de semana",
-    avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=256&auto=format&fit=crop"
-  }
-];
+import { useAppContext } from "../../../context/AppContext";
 
 export default function Testimonials() {
+  const { siteImages } = useAppContext();
   const [activeIndex, setActiveIndex] = useState(0);
+
+  const testimonials = [
+    {
+      text: "Moro sozinho e a Marmitaria Vitória salvou a minha vida. O tempero é maravilhoso, lembra comida de mãe. E a entrega sempre no horário!",
+      name: "Carlos Eduardo",
+      role: "Cliente fiel há 1 ano",
+      avatar: siteImages?.testimonialsAvatars[0]
+    },
+    {
+      text: "O churrasco no kilo no fim de semana é de lei aqui em casa. Picanha sempre no ponto, farofa perfeita. Melhor custo-benefício de Campo Novo.",
+      name: "Mariana Silva",
+      role: "Pede todo final de semana",
+      avatar: siteImages?.testimonialsAvatars[1]
+    }
+  ];
 
   useEffect(() => {
     const interval = setInterval(() => {
       setActiveIndex((prev) => (prev + 1) % testimonials.length);
     }, 6000);
     return () => clearInterval(interval);
-  }, []);
+  }, [testimonials.length]);
 
   return (
     <section className="relative py-32 bg-stone-900 overflow-hidden">
       {/* Background Image */}
       <div className="absolute inset-0 z-0">
         <img 
-          src="https://images.unsplash.com/photo-1514933651103-005eec06c04b?q=80&w=2000&auto=format&fit=crop" 
+          src={siteImages?.testimonialsBg} 
           alt="Restaurante" 
           className="w-full h-full object-cover opacity-30"
           referrerPolicy="no-referrer"

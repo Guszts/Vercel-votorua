@@ -28,10 +28,10 @@ export default function Categories() {
           </h2>
           
           <div className="mt-8 inline-flex flex-wrap justify-center items-center gap-4 text-sm font-medium text-stone-600 bg-stone-100 rounded-full px-6 py-3 border border-stone-200">
-            <span>📍 Av Brasil, 1020 - Centro</span>
-            <span className="hidden md:inline text-stone-300">•</span>
-            <span>⏱ 30-45 min</span>
-            <span className="hidden md:inline text-stone-300">•</span>
+            <span>Av Brasil, 1020 - Centro</span>
+            <span className="hidden md:inline text-stone-300">/</span>
+            <span>30-45 min</span>
+            <span className="hidden md:inline text-stone-300">/</span>
             <span className="text-green-600 font-bold">Frete Grátis acima de R$50</span>
           </div>
         </motion.div>
@@ -40,9 +40,13 @@ export default function Categories() {
           {categories.map((cat, i) => {
             const Icon = cat.icon;
             return (
-              <motion.a
-                href={`#${cat.id}`}
-                key={cat.id}
+                <a
+                  href="#cardapio"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    document.getElementById('cardapio')?.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                  key={cat.id}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, margin: "-50px" }}
@@ -54,7 +58,7 @@ export default function Categories() {
                 </div>
                 <h3 className="font-bold text-stone-900 group-hover:text-red-600 transition-colors text-center">{cat.name}</h3>
                 <p className="text-xs text-stone-500 text-center mt-1">{cat.desc}</p>
-              </motion.a>
+              </a>
             )
           })}
         </div>

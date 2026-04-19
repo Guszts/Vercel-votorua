@@ -1,11 +1,14 @@
 import { motion } from "motion/react";
+import { useAppContext } from "../../../context/AppContext";
 
 export default function Banner() {
+  const { siteImages } = useAppContext();
+
   return (
     <section className="relative bg-[#1a0a08] py-32 overflow-hidden">
       <div className="absolute inset-0 z-0">
         <img 
-          src="https://images.unsplash.com/photo-1556910103-1c02745aae4d?q=80&w=2940&auto=format&fit=crop" 
+          src={siteImages?.bannerBg} 
           alt="Cozinha local" 
           className="w-full h-full object-cover opacity-25"
           referrerPolicy="no-referrer"

@@ -1,22 +1,8 @@
-import React, { useState } from "react";
-import { CheckCircle2, MapPin, Truck, Star, Phone } from "lucide-react";
-import { motion } from "motion/react";
+import { MapPin, Truck, Star, Phone } from "lucide-react";
+import { useAppContext } from "../../../context/AppContext";
 
 export default function Contact() {
-  const [formStatus, setFormStatus] = useState<"idle" | "submitting" | "success">("idle");
-
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setFormStatus("submitting");
-    
-    // Mock the fetch to a Readdy Forms endpoint
-    setTimeout(() => {
-      setFormStatus("success");
-      // Reset form after a few seconds
-      setTimeout(() => setFormStatus("idle"), 5000);
-      (e.target as HTMLFormElement).reset();
-    }, 1500);
-  };
+  const { setIsOrderModalOpen } = useAppContext();
 
   return (
     <section className="bg-stone-50 py-24 px-6 lg:px-8">
@@ -60,104 +46,24 @@ export default function Contact() {
             </div>
           </div>
 
-          <a
-             href="https://pedir.delivery/app/restaurantevitoria/menu"
-             target="_blank"
-             rel="nofollow noopener noreferrer"
+          <button
+             onClick={() => setIsOrderModalOpen(true)}
              className="inline-flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 hover:-translate-y-1 transition-all duration-300 text-white px-8 py-4 rounded-full font-bold text-lg"
           >
              <Phone className="w-5 h-5" />
              Ligar Agora (WhatsApp)
-          </a>
+          </button>
         </div>
 
-        {/* Right Side: Form */}
-        <div className="w-full lg:w-[55%]">
-          <div className="bg-white p-8 lg:p-12 rounded-2xl border border-stone-200">
-            {formStatus === "success" ? (
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="flex flex-col items-center justify-center text-center py-16"
-              >
-                <CheckCircle2 className="w-20 h-20 text-green-500 mb-6" />
-                <h3 className="text-3xl font-black text-stone-900 mb-4">Mensagem Enviada!</h3>
-                <p className="text-stone-600 text-lg">Retornaremos o contato o mais rápido possível.</p>
-              </motion.div>
-            ) : (
-              <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="flex flex-col gap-2">
-                    <label htmlFor="name" className="text-sm font-bold text-stone-900">Nome Completo</label>
-                    <input 
-                      type="text" 
-                      id="name" 
-                      required
-                      placeholder="João da Silva"
-                      className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 text-stone-900 focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 transition-all"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <label htmlFor="phone" className="text-sm font-bold text-stone-900">Telefone / WhatsApp</label>
-                    <input 
-                      type="tel" 
-                      id="phone" 
-                      required
-                      placeholder="(65) 99999-9999"
-                      className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 text-stone-900 focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 transition-all"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                   <div className="flex flex-col gap-2">
-                    <label htmlFor="email" className="text-sm font-bold text-stone-900">E-mail</label>
-                    <input 
-                      type="email" 
-                      id="email" 
-                      required
-                      placeholder="joao@exemplo.com"
-                      className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 text-stone-900 focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 transition-all"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <label htmlFor="subject" className="text-sm font-bold text-stone-900">Assunto</label>
-                    <select 
-                      id="subject" 
-                      required
-                      className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 text-stone-900 focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 transition-all appearance-none"
-                    >
-                      <option value="">Selecione uma opção</option>
-                      <option value="duvida">Dúvida sobre cardápio</option>
-                      <option value="evento">Orçamento para Evento/Empresa</option>
-                      <option value="reclamacao">Sugestão ou Reclamação</option>
-                      <option value="outro">Outro assunto</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-2">
-                  <label htmlFor="message" className="text-sm font-bold text-stone-900">Mensagem</label>
-                  <textarea 
-                    id="message" 
-                    required
-                    maxLength={500}
-                    rows={5}
-                    placeholder="Como podemos te ajudar hoje?"
-                    className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 text-stone-900 focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 transition-all resize-none"
-                  ></textarea>
-                </div>
-
-                <button 
-                  type="submit"
-                  disabled={formStatus === "submitting"}
-                  className="w-full bg-stone-900 hover:bg-stone-800 transition-all duration-300 text-white font-bold text-lg py-4 rounded-xl disabled:opacity-70 disabled:cursor-not-allowed mt-2"
-                >
-                  {formStatus === "submitting" ? "Enviando..." : "Enviar Mensagem"}
-                </button>
-              </form>
-            )}
-          </div>
+        {/* Right Side: Maps */}
+        <div className="w-full lg:w-[55%] h-[400px] lg:h-auto min-h-[400px] rounded-2xl overflow-hidden border border-stone-200 shadow-sm relative">
+          <iframe 
+            src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d15444.6465492233!2d-57.89332219999999!3d-14.654761!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x93a5b3a4a0dbfeff%3A0xc6ad505fccb0aa7a!2sCampo%20Novo%20do%20Parecis%20-%20MT!5e0!3m2!1spt-BR!2sbr!4v1714081030000!5m2!1spt-BR!2sbr" 
+            className="absolute inset-0 w-full h-full border-0" 
+            allowFullScreen={false} 
+            loading="lazy" 
+            referrerPolicy="no-referrer-when-downgrade"
+          />
         </div>
       </div>
     </section>

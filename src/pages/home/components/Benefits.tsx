@@ -2,55 +2,57 @@ import { useState, useEffect } from "react";
 import { cn } from "../../../lib/utils";
 import { motion } from "motion/react";
 import { CheckCircle2, Truck, ListCollapse } from "lucide-react";
-
-const benefits = [
-  {
-    id: "qualidade",
-    title: "Qualidade na mesa",
-    desc: "Ingredientes frescos todos os dias, selecionados a dedo. Comida de verdade com sabor e higiene impecável.",
-    stats: [
-      { label: "Ingredientes", value: "100% Frescos" },
-      { label: "Preparo", value: "Artesanal" },
-      { label: "Higiene", value: "Nota 10" },
-    ],
-    icon: CheckCircle2,
-    image: "https://images.unsplash.com/photo-1547592166-23ac45744acd?q=80&w=2000&auto=format&fit=crop"
-  },
-  {
-    id: "entrega",
-    title: "Entrega express",
-    desc: "Não passe fome esperando. Nossa equipe de motoboys cobre toda a cidade rapidamente, mantendo a comida quentinha.",
-    stats: [
-      { label: "Tempo médio", value: "35 min" },
-      { label: "Frete Grátis*", value: "Acima R$50" },
-      { label: "Embalagem", value: "Térmica" },
-    ],
-    icon: Truck,
-    image: "https://images.unsplash.com/photo-1512411681728-661081541300?q=80&w=2000&auto=format&fit=crop"
-  },
-  {
-    id: "variedade",
-    title: "Cardápio variado",
-    desc: "Enjoar? Nunca. Todos os dias temos opções diferentes em marmitas, carnes variadas no rolete e sobremesas no capricho.",
-    stats: [
-      { label: "Categorias", value: "6+" },
-      { label: "Pratos", value: "Mais de 30" },
-      { label: "Opções", value: "Para todos" },
-    ],
-    icon: ListCollapse,
-    image: "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?q=80&w=2000&auto=format&fit=crop"
-  }
-];
+import { useAppContext } from "../../../context/AppContext";
 
 export default function Benefits() {
+  const { siteImages } = useAppContext();
   const [activeTab, setActiveTab] = useState(0);
+
+  const benefits = [
+    {
+      id: "qualidade",
+      title: "Qualidade na mesa",
+      desc: "Ingredientes frescos todos os dias, selecionados a dedo. Comida de verdade com sabor e higiene impecável.",
+      stats: [
+        { label: "Ingredientes", value: "100% Frescos" },
+        { label: "Preparo", value: "Artesanal" },
+        { label: "Higiene", value: "Nota 10" },
+      ],
+      icon: CheckCircle2,
+      image: siteImages?.benefitsImages[0]
+    },
+    {
+      id: "entrega",
+      title: "Entrega express",
+      desc: "Não passe fome esperando. Nossa equipe de motoboys cobre toda a cidade rapidamente, mantendo a comida quentinha.",
+      stats: [
+        { label: "Tempo médio", value: "35 min" },
+        { label: "Frete Grátis*", value: "Acima R$50" },
+        { label: "Embalagem", value: "Térmica" },
+      ],
+      icon: Truck,
+      image: siteImages?.benefitsImages[1]
+    },
+    {
+      id: "variedade",
+      title: "Cardápio variado",
+      desc: "Enjoar? Nunca. Todos os dias temos opções diferentes em marmitas, carnes variadas no rolete e sobremesas no capricho.",
+      stats: [
+        { label: "Categorias", value: "6+" },
+        { label: "Pratos", value: "Mais de 30" },
+        { label: "Opções", value: "Para todos" },
+      ],
+      icon: ListCollapse,
+      image: siteImages?.benefitsImages[2]
+    }
+  ];
 
   useEffect(() => {
     const interval = setInterval(() => {
       setActiveTab((prev) => (prev + 1) % benefits.length);
     }, 5000);
     return () => clearInterval(interval);
-  }, []);
+  }, [benefits.length]);
 
   const activeBenefit = benefits[activeTab];
 
@@ -99,7 +101,7 @@ export default function Benefits() {
           </div>
 
           {/* Right Side: Image */}
-          <div className="w-full lg:w-1/2 relative h-64 lg:h-auto">
+          <div className="w-full lg:w-1/2 relative h-64 min-h-[300px] lg:h-auto lg:min-h-full">
              {benefits.map((benefit, i) => (
                <div 
                  key={benefit.id}

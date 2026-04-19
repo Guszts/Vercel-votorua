@@ -1,8 +1,11 @@
 import { Instagram, Facebook, Ghost } from "lucide-react"; // Using Ghost or similar as fallback for WhatsApp if not available in Lucide, wait, Lucide has no WhatsApp. Wait, no, it might not. I will use a message-circle for whatsapp
 import { MessageCircle, Utensils } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useAppContext } from "../../../context/AppContext";
 
 export default function Footer() {
+  const { setIsOrderModalOpen } = useAppContext();
+
   return (
     <footer className="bg-[var(--color-vitoria-footer)] pt-24 pb-8">
       <div className="max-w-7xl mx-auto px-6 lg:px-8">
@@ -13,14 +16,12 @@ export default function Footer() {
             Sua marmita quentinha <br className="hidden md:block"/>
             está a <span className="text-red-600">um clique.</span>
           </h2>
-          <a
-            href="https://pedir.delivery/app/restaurantevitoria/menu"
-            target="_blank"
-            rel="nofollow noopener noreferrer"
+          <button
+            onClick={() => setIsOrderModalOpen(true)}
             className="bg-red-600 hover:bg-red-700 hover:-translate-y-1 transition-all duration-300 text-white px-8 py-4 rounded-full font-bold text-lg text-center min-w-[200px]"
           >
             Pedir Agora
-          </a>
+          </button>
         </div>
 
         {/* 4 Columns Area */}
@@ -75,10 +76,6 @@ export default function Footer() {
           <p className="text-stone-500 text-sm font-medium text-center">
             &copy; {new Date().getFullYear()} Restaurante e Marmitaria Vitória. Todos os direitos reservados.
           </p>
-
-          <Link to="/prompt" className="text-sm font-bold text-red-600 hover:text-red-700 transition-colors">
-            Ver Prompt
-          </Link>
         </div>
       </div>
     </footer>

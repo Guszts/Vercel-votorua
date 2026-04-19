@@ -1,0 +1,47 @@
+{
+  "summary": "E2E testing of Vitória app (Vite+React+Supabase+FastAPI). Backend API 100% green (health + 3 AI endpoints via Emergent LLM key + PWA assets). Frontend navigation, bottom nav (sticky), auth login for cliente and admin, product detail, historico, depoimentos, perfil, admin panel (all 5 tabs) all working. One SUPABASE SCHEMA BUG found: testimonials->profiles embed query fails with 400 (PGRST200 - no FK relationship between testimonials and public.profiles in schema cache). Listing depoimentos is therefore always empty on the client.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Home hero + ProductDetail hero", "issue": "Shows broken <img> icon at top because products in Supabase have no image_url; hero background is black (cover gradient) which conflicts with requirement 'textos legíveis sobre fundo claro'. Consider placeholder image when image_url is null.", "selector": "img with empty src in hero", "priority": "MEDIUM"},
+      {"component": "React dev warning", "issue": "Console: 'React does not recognize the `%s` prop on a DOM element'. Likely a dynamic prop (as/icon/etc) being forwarded to a native DOM element. Non-blocking but pollutes console.", "selector": "—", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Depoimentos listing (anon + logged-in)", "issue": "Supabase REST query returns HTTP 400 (PGRST200): \"Could not find a relationship between 'testimonials' and 'profiles' in the schema cache\". The query uses profiles!inner(nickname,username,avatar_url,full_name) but the FK testimonials.user_id references auth.users, not public.profiles. Depoimentos page therefore silently shows 'Nenhum depoimento por aqui ainda.' even if data exists. Fix options: (a) add FK in supabase_schema.sql: ALTER TABLE public.testimonials ADD CONSTRAINT testimonials_user_id_profiles_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id) ON DELETE CASCADE;  OR (b) query testimonials and profiles separately and join client-side.", "affected_selectors": ["Depoimentos list"]}
+    ],
+    "design_issues": [
+      {"screen": "Home hero", "issues": ["Hero uses dark/black background under 'Sabor de Casa'. Task spec asked for 'textos legíveis sobre fundo claro'. Verify intent with designer or change hero background to stone-50/white."]},
+      {"screen": "ProductDetail hero", "issues": ["Hero area shows broken image + dark gradient when product has no image_url; fallback placeholder recommended."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_backend_api.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "Fix Supabase FK/embed: add FK testimonials.user_id -> public.profiles.id (or split query). Currently Depoimentos listing is always empty regardless of data.",
+    "Add image fallback/placeholder for products without image_url (Home cards + ProductDetail hero show broken <img>).",
+    "Decide hero background: spec said 'fundo claro' but current hero is dark. Align with designer.",
+    "Track down the `%s` prop warning (likely a custom prop forwarded to DOM)."
+  ],
+  "critical_code_review_comments": [
+    "backend/server.py: EMERGENT_LLM_KEY loaded at import time is fine; health and 3 AI endpoints pass. All good.",
+    "frontend/src/pages/depoimentos: using profiles!inner embed is fragile — requires an explicit FK in public schema. Prefer `profiles:user_id(nickname,...)` or split query.",
+    "Products in Supabase are missing image_url values, which causes broken hero image. Either seed image_url or render placeholder.",
+    "Admin check uses email string match — works but a role column check is already shown in UI (role=admin badge). Make sure /ajustes is gated on role not just email."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_backend_api.py (new)",
+    "/app/test_reports/pytest/pytest_results.xml (new)"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "~90% (Depoimentos listing broken due to Supabase schema)"},
+  "test_credentials": "Admin: gustavomonteiro09g@gmail.com / Vitoria123! — OK. Cliente: cliente@vitoria.test / Teste123! — OK. Both log in; admin shows 'Admin' badge and 'Painel Admin' shortcut.",
+  "seed_data_creation": "None. Used existing seeded products (11) and 2 profiles from Supabase.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend suite at /app/backend/tests/test_backend_api.py (pytest, 8 tests, 100% pass). AI endpoints call Emergent LLM via gpt-4o-mini and take 2-5s. Main remaining bug: testimonials->profiles FK missing in Supabase schema (PGRST200). Verified by curl to REST endpoint. After main agent fixes schema, re-run Depoimentos UI + insert a sample testimonial and confirm it renders. All other flows (Home, ProductDetail, Historico, Perfil, Admin 5 tabs, AI desc click, scroll-to-top, sticky bottom nav) are working.",
+  "rca of the issue": "Supabase PGRST200: PostgREST cannot find a relationship between `public.testimonials` and `public.profiles`. The supabase_schema.sql likely defines `testimonials.user_id REFERENCES auth.users(id)`. PostgREST embed `profiles!inner(...)` needs an FK into `public.profiles`. Fix: add explicit FK `ALTER TABLE public.testimonials ADD CONSTRAINT testimonials_user_id_profiles_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id) ON DELETE CASCADE;` (profiles.id already equals auth.users.id via the handle_new_user trigger). Then reload PostgREST schema cache (`NOTIFY pgrst, 'reload schema';`)."
+}

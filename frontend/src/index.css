@@ -7,13 +7,13 @@
 }
 
 @layer base {
-  html {
+  html, body {
     scroll-behavior: smooth;
+    background-color: #fafaf9; /* stone-50 */
+    color: #1c1917; /* stone-900 */
   }
   body {
     font-family: var(--font-sans);
-    /* leave room for floating bottom nav */
-    padding-bottom: env(safe-area-inset-bottom);
   }
   * {
     -webkit-tap-highlight-color: transparent;
@@ -33,6 +33,3 @@
   from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-
-/* Lists / sticky elements extra bottom padding to clear floating bottom nav */
-main, .page-content { padding-bottom: 6rem; }

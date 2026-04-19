@@ -15,24 +15,25 @@ import ScrollToHero from "./components/layout/ScrollToHero";
 
 function Shell() {
   const loc = useLocation();
-  // Hide bottom nav on certain routes (admin panel keeps its own layout)
   const hideBottomNav = loc.pathname.startsWith("/ajustes");
   return (
-    <>
+    <div className="min-h-screen flex flex-col bg-stone-50 text-stone-900">
       <ScrollToHero />
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/ajustes" element={<AdminPanel />} />
-        <Route path="/produto/:id" element={<ProductDetail />} />
-        <Route path="/historico" element={<Historico />} />
-        <Route path="/depoimentos" element={<Depoimentos />} />
-        <Route path="/depoimentos/:id" element={<DepoimentoDetail />} />
-        <Route path="/perfil" element={<Perfil />} />
-      </Routes>
+      <main className="flex-1">
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/ajustes" element={<AdminPanel />} />
+          <Route path="/produto/:id" element={<ProductDetail />} />
+          <Route path="/historico" element={<Historico />} />
+          <Route path="/depoimentos" element={<Depoimentos />} />
+          <Route path="/depoimentos/:id" element={<DepoimentoDetail />} />
+          <Route path="/perfil" element={<Perfil />} />
+        </Routes>
+      </main>
       <CartDrawer />
       <OrderModal />
       {!hideBottomNav && <BottomNav />}
-    </>
+    </div>
   );
 }
 

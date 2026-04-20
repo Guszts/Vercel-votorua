@@ -1,4 +1,4 @@
-import { BACKEND_URL } from "./supabase";
+import { BACKEND_URL, supabase } from "./supabase";
 
 export class ApiError extends Error {
   status: number;
@@ -10,12 +10,24 @@ export class ApiError extends Error {
   }
 }
 
+async function authHeaders(): Promise<Record<string, string>> {
+  try {
+    const { data } = await supabase.auth.getSession();
+    if (data.session?.access_token) {
+      return { Authorization: `Bearer ${data.session.access_token}` };
+    }
+  } catch { /* noop */ }
+  return {};
+}
+
 async function req<T = any>(path: string, opts: RequestInit = {}): Promise<T> {
+  const bearer = await authHeaders();
   const res = await fetch(`${BACKEND_URL}${path}`, {
     ...opts,
     credentials: "include",
     headers: {
       ...(opts.body && !(opts.body instanceof FormData) ? { "Content-Type": "application/json" } : {}),
+      ...bearer,
       ...(opts.headers || {}),
     },
   });
@@ -91,18 +103,9 @@ export const api = {
 
   // ai
   aiDescribe: (name: string, category?: string) =>
-    req<{ description: string }>("/api/ai/describe", {
-      method: "POST",
-      body: JSON.stringify({ name, category }),
-    }),
+    req<{ description: string }>("/api/ai/describe", { method: "POST", body: JSON.stringify({ name, category }) }),
   aiBadge: (name: string, description?: string) =>
-    req<{ badge: string }>("/api/ai/badge", {
-      method: "POST",
-      body: JSON.stringify({ name, description }),
-    }),
+    req<{ badge: string }>("/api/ai/badge", { method: "POST", body: JSON.stringify({ name, description }) }),
   aiReplyTestimonial: (author: string, rating: number, content?: string | null) =>
-    req<{ reply: string }>("/api/ai/reply-testimonial", {
-      method: "POST",
-      body: JSON.stringify({ author, rating, content }),
-    }),
+    req<{ reply: string }>("/api/ai/reply-testimonial", { method: "POST", body: JSON.stringify({ author, rating, content }) }),
 };

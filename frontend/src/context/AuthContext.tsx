@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import { supabase } from "../lib/supabase";
 import { api } from "../lib/api";
 
 export interface AuthUser {
@@ -18,6 +19,8 @@ interface AuthCtx {
   loading: boolean;
   isAdmin: boolean;
   signInWithGoogle: () => void;
+  signInWithEmail: (email: string, password: string) => Promise<{ error?: string }>;
+  signUpWithEmail: (email: string, password: string, fullName: string) => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   updateProfile: (patch: Partial<AuthUser>) => Promise<{ error?: string }>;
@@ -41,13 +44,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    // CRITICAL: If returning from OAuth callback, skip the /me check.
-    // AuthCallback will exchange the session_id and establish the session first.
+    // CRITICAL: skip the /me check when returning from OAuth callback
     if (typeof window !== "undefined" && window.location.hash?.includes("session_id=")) {
       setLoading(false);
       return;
     }
     checkAuth();
+    // React to Supabase auth state changes (email login/logout)
+    const { data: sub } = supabase.auth.onAuthStateChange((_event) => {
+      checkAuth();
+    });
+    return () => sub.subscription.unsubscribe();
   }, [checkAuth]);
 
   const signInWithGoogle = useCallback(() => {
@@ -57,7 +64,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       `https://auth.emergentagent.com/?redirect=${encodeURIComponent(redirectUrl)}`;
   }, []);
 
+  const signInWithEmail: AuthCtx["signInWithEmail"] = useCallback(async (email, password) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) return { error: error.message };
+    await checkAuth();
+    return {};
+  }, [checkAuth]);
+
+  const signUpWithEmail: AuthCtx["signUpWithEmail"] = useCallback(async (email, password, fullName) => {
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { full_name: fullName } },
+    });
+    if (error) return { error: error.message };
+    return {};
+  }, []);
+
   const signOut = useCallback(async () => {
+    try { await supabase.auth.signOut(); } catch { /* noop */ }
     try { await api.logout(); } catch { /* noop */ }
     setUser(null);
   }, []);
@@ -83,6 +108,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         loading,
         isAdmin: !!user?.is_admin,
         signInWithGoogle,
+        signInWithEmail,
+        signUpWithEmail,
         signOut,
         refreshProfile,
         updateProfile,

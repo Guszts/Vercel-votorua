@@ -36,6 +36,7 @@ load_dotenv()
 EMERGENT_LLM_KEY = os.environ.get("EMERGENT_LLM_KEY")
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
 SUPABASE_SERVICE_ROLE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+SUPABASE_ANON_KEY = os.environ.get("SUPABASE_ANON_KEY", "")
 EMERGENT_AUTH_URL = "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data"
 
 # Admin allowlist (hardcoded — always admin regardless of DB role)
@@ -171,19 +172,54 @@ async def resolve_session(session_token: Optional[str]) -> Optional[dict[str, An
     return profiles[0]
 
 
+async def resolve_supabase_token(token: str) -> Optional[dict[str, Any]]:
+    """Validate a Supabase Auth JWT by asking GoTrue /auth/v1/user, then upsert our profile by email."""
+    if not (SUPABASE_URL and SUPABASE_ANON_KEY):
+        return None
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.get(
+                f"{SUPABASE_URL}/auth/v1/user",
+                headers={"apikey": SUPABASE_ANON_KEY, "Authorization": f"Bearer {token}"},
+            )
+        if r.status_code != 200:
+            return None
+        data = r.json()
+    except Exception:
+        return None
+
+    email = (data.get("email") or "").lower()
+    if not email:
+        return None
+    meta = data.get("user_metadata") or {}
+    return await upsert_profile_from_emergent({
+        "email": email,
+        "name": meta.get("full_name") or meta.get("name") or email.split("@")[0],
+        "picture": meta.get("avatar_url") or meta.get("picture"),
+    })
+
+
 async def current_user(
     request: Request,
     session_token: Optional[str] = Cookie(default=None),
 ) -> dict[str, Any]:
-    token = session_token
-    if not token:
-        auth = request.headers.get("authorization", "")
-        if auth.lower().startswith("bearer "):
-            token = auth.split(" ", 1)[1].strip()
-    user = await resolve_session(token)
-    if not user:
-        raise HTTPException(401, "Não autenticado")
-    return user
+    # 1) Emergent cookie path
+    user = await resolve_session(session_token) if session_token else None
+    if user:
+        return user
+    # 2) Supabase bearer path
+    auth_hdr = request.headers.get("authorization", "")
+    if auth_hdr.lower().startswith("bearer "):
+        token = auth_hdr.split(" ", 1)[1].strip()
+        # Could be an Emergent session_token fallback — try that first
+        user = await resolve_session(token)
+        if user:
+            return user
+        # Then Supabase JWT
+        user = await resolve_supabase_token(token)
+        if user:
+            return user
+    raise HTTPException(401, "Não autenticado")
 
 
 async def require_admin(user: dict[str, Any] = Depends(current_user)) -> dict[str, Any]:
@@ -201,6 +237,8 @@ async def health():
         "status": "ok",
         "service": "vitoria-backend",
         "supabase_configured": bool(SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY),
+        "supabase_anon_configured": bool(SUPABASE_ANON_KEY),
+        "auth_methods": ["google_emergent", "email_supabase"] if SUPABASE_ANON_KEY else ["google_emergent"],
     }
 
 

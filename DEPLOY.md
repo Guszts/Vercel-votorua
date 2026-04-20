@@ -1,153 +1,120 @@
-# Vitória — Deploy na Vercel + Google OAuth
+# Vitória — Deploy Vercel + Credenciais
 
-Guia passo a passo completo para colocar o app no ar na Vercel com seu próprio domínio e habilitar login com Google.
-
----
-
-## 1) Admin já configurado
-
-O email `gustavomonteiro09g@gmail.com` é promovido automaticamente a administrador pelo trigger `handle_new_user()` do Supabase (veja `supabase_schema.sql`). Basta o usuário se cadastrar pela primeira vez e ele já aparece como **admin** no app.
-
-No painel `/ajustes` existe a aba **Depoimentos**, onde o admin pode:
-- Listar todos os depoimentos (com filtro por estrelas)
-- Excluir qualquer depoimento
-- Responder (manualmente ou gerar resposta com IA)
-- Copiar a resposta para colar no WhatsApp/Instagram
+## Arquitetura de deploy
+- **Frontend (Vite/React)** → Vercel
+- **Backend (FastAPI)** → Railway / Render / Fly.io (Vercel não roda FastAPI de forma adequada)
+- **Supabase** → já está em produção
 
 ---
 
-## 2) Passo a passo — Credenciais Google OAuth
+## 1) Frontend na Vercel
 
-> Você precisa de 2 coisas: **Client ID** e **Client Secret**, ambos criados no Google Cloud Console e colados no Supabase.
+### Build settings (tela de importação do projeto)
+| Campo | Valor |
+|---|---|
+| **Framework Preset** | `Vite` (detectado automaticamente) |
+| **Root Directory** | `frontend` |
+| **Build Command** | `yarn build` |
+| **Output Directory** | `dist` |
+| **Install Command** | `yarn install --frozen-lockfile` |
+| **Node.js Version** | `20.x` |
 
-### 2.1. Google Cloud Console
+Os arquivos `/app/vercel.json` (raiz) e `/app/frontend/vercel.json` já configuram isso automaticamente — Vercel vai respeitá-los.
 
-1. Acesse: https://console.cloud.google.com/
-2. Crie (ou selecione) um **Project**. Ex.: `Vitoria Marmitaria`.
-3. Menu lateral → **APIs & Services → OAuth consent screen**
-   - User type: **External**
-   - Preencha: nome do app (`Vitória`), email de suporte, logo (sua logo), email do desenvolvedor
-   - Scopes: deixe os padrão (`email`, `profile`, `openid`)
-   - Test users: adicione seu email enquanto o app estiver em modo de teste
-   - Publish app (quando quiser deixar público)
+### Variáveis de ambiente do frontend
+Adicione em **Settings → Environment Variables** para Production, Preview e Development:
 
-4. Menu lateral → **APIs & Services → Credentials → + Create Credentials → OAuth client ID**
-   - Application type: **Web application**
-   - Name: `Vitoria Web`
+| Nome | Valor | Obs |
+|---|---|---|
+| `VITE_SUPABASE_URL` | `https://uuovdyvfoufjmlnmhzse.supabase.co` | URL do seu projeto Supabase |
+| `VITE_SUPABASE_ANON_KEY` | (copie de `/app/frontend/.env`) | chave pública `anon` — pode ir em client |
+| `VITE_BACKEND_URL` | `https://sua-api-vitoria.up.railway.app` | URL do backend FastAPI em produção (ver seção 2) |
+| `VITE_ADMIN_EMAIL` | `gustavomonteiro09g@gmail.com` | opcional, usado só como fallback |
 
-5. **Authorized JavaScript origins** (origens JS autorizadas) — adicione **TODAS** que você for usar:
-   ```
-   http://localhost:3000
-   http://localhost:5173
-   https://uuovdyvfoufjmlnmhzse.supabase.co
-   https://SEU-PROJETO.vercel.app
-   https://SEU-DOMINIO-PROPRIO.com
-   https://www.SEU-DOMINIO-PROPRIO.com
-   ```
-   > **Dica:** coloque `http://localhost:3000` para testar localmente, a URL do Supabase, a URL de preview da Vercel (`*.vercel.app`) e o seu domínio próprio (com e sem `www`). Se ainda não lembrou do domínio, pode adicionar depois sem problema — basta editar as credenciais.
-
-6. **Authorized redirect URIs** (URIs de redirecionamento autorizadas):
-   ```
-   https://uuovdyvfoufjmlnmhzse.supabase.co/auth/v1/callback
-   ```
-   > **Somente essa URL é necessária aqui**, pois o Supabase é quem recebe o callback do Google e depois devolve ao seu domínio. Você **NÃO** precisa adicionar seu domínio próprio como redirect URI — o Supabase cuida disso.
-
-7. Clique em **Create**. Copie o **Client ID** e o **Client Secret** que aparecem.
-
-### 2.2. Supabase Authentication → Providers → Google
-
-1. Abra o Supabase Studio do seu projeto.
-2. Menu lateral → **Authentication → Providers → Google** → **Enable**.
-3. Cole o **Client ID** e **Client Secret**.
-4. **Authorized Client IDs**: cole o mesmo Client ID novamente.
-5. Salve.
-
-### 2.3. URLs adicionais no Supabase
-
-1. **Authentication → URL Configuration**:
-   - **Site URL:** `https://SEU-DOMINIO-PROPRIO.com` (ou sua URL principal em produção)
-   - **Redirect URLs (whitelist):** adicione cada URL permitida, uma por linha:
-     ```
-     http://localhost:3000/**
-     https://SEU-PROJETO.vercel.app/**
-     https://SEU-DOMINIO-PROPRIO.com/**
-     https://www.SEU-DOMINIO-PROPRIO.com/**
-     ```
-
-> Sem isso o Supabase bloqueia o retorno do Google com erro `redirect_url not allowed`.
-
-### 2.4. Testar
-
-Abra o app → **Perfil → Entrar ou cadastrar → Continuar com Google**. Deve abrir o popup da Google, pedir consentimento e retornar logado.
+> Não precisa de nenhuma variável de Google OAuth aqui. A auth via Google usa **Emergent** (URL hardcoded) e a auth via email usa o SDK Supabase (que lê VITE_SUPABASE_URL/ANON).
 
 ---
 
-## 3) Deploy na Vercel
+## 2) Backend na Railway (recomendado) / Render / Fly
 
-### 3.1. Estrutura
+### Variáveis de ambiente do backend
 
-O app frontend fica em `/app/frontend`. O backend FastAPI (apenas os endpoints de IA) vive em `/app/backend` — ele pode continuar rodando no Emergent OU você o hospeda em outro lugar (Railway, Fly.io, Render). A Vercel só fará deploy do **frontend**.
+| Nome | Obrigatório? | Valor / Onde pegar |
+|---|---|---|
+| `SUPABASE_URL` | ✅ | `https://uuovdyvfoufjmlnmhzse.supabase.co` |
+| `SUPABASE_SERVICE_ROLE_KEY` | ✅ | Supabase → Settings → API → `service_role` (JWT longo, SECRET) |
+| `SUPABASE_ANON_KEY` | ✅ (para login email) | Supabase → Settings → API → `anon` / `public` |
+| `EMERGENT_LLM_KEY` | ✅ | `sk-emergent-7Ea75A099F5FfEc8fE` (já disponível) |
+| `CORS_ORIGINS` | ✅ | `https://SEU-DOMINIO.com,https://SEU-PROJETO.vercel.app` (vírgula separa; use `*` só em testes) |
+| `MONGO_URL` | opcional | não usado atualmente (legado) |
+| `DB_NAME` | opcional | idem |
+| `SMTP_HOST` | opcional | `smtp.resend.com` / `smtp.sendgrid.net` / `smtp.gmail.com` |
+| `SMTP_PORT` | opcional | `587` (TLS) |
+| `SMTP_USER` | opcional | usuário SMTP |
+| `SMTP_PASS` | opcional | senha/API key SMTP |
+| `SMTP_FROM` | opcional | `Vitória <no-reply@seu-dominio.com>` |
 
-Arquivos já prontos no repositório:
-- `/app/vercel.json` — raiz, aponta `rootDirectory: frontend` (caso você conecte o repo inteiro)
-- `/app/frontend/vercel.json` — config da SPA (rewrites, cache dos assets, service worker)
-- `/app/frontend/.vercelignore`
+### Build / Start Commands (Railway)
+- **Install:** `pip install -r backend/requirements.txt`
+- **Start:** `uvicorn backend.server:app --host 0.0.0.0 --port ${PORT:-8001}`
+- **Root Directory (Railway):** raiz do repositório (`/`) — **não** `backend`, porque `emails/` fica na raiz
 
-### 3.2. Importar o projeto
+---
 
-1. Acesse https://vercel.com/new
-2. Conecte seu GitHub (use o botão **Save to GitHub** no chat do Emergent primeiro).
-3. Selecione o repositório.
-4. Na tela de configuração do projeto:
+## 3) Passos de configuração obrigatórios após o deploy
 
-   | Campo | Valor |
-   |---|---|
-   | **Framework Preset** | `Vite` (detecta automaticamente) |
-   | **Root Directory** | `frontend` |
-   | **Build Command** | `yarn build` |
-   | **Output Directory** | `dist` |
-   | **Install Command** | `yarn install --frozen-lockfile` |
-   | **Node.js Version** | `20.x` (default) |
+### Supabase
+1. **SQL Editor** → rodar `/app/supabase_schema.sql`
+2. **Authentication → Providers → Email** → **Enable** (normalmente já vem ligado)
+3. **Authentication → URL Configuration** → adicionar em **Redirect URLs**:
+   ```
+   https://SEU-DOMINIO.com/**
+   https://SEU-PROJETO.vercel.app/**
+   http://localhost:3000/**
+   ```
+4. **Authentication → Email Templates** (opcional): customize o template de confirmação para combinar com a marca. Os templates HTML em `/app/emails/` são usados apenas pelos emails do **backend** (order confirmation etc), não pelos emails do Supabase Auth (confirmação, reset de senha).
 
-### 3.3. Environment Variables (obrigatórias)
+### Google (Emergent)
+Nada a configurar. Emergent gerencia todo o OAuth.
 
-Na aba **Environment Variables** da Vercel, adicione para **Production**, **Preview** e **Development**:
+### Admin
+- `gustavomonteiro09g@gmail.com` e `gustavomonte10g@gmail.com` são **sempre** admin pela allowlist no backend, independentemente de terem entrado via email ou Google.
+- Se um desses emails se cadastrar via email/senha no Supabase, pode ser necessário clicar no link de confirmação enviado por email (a menos que você desative "Confirm email" em Supabase → Authentication → Providers → Email).
+
+---
+
+## 4) Fluxo de auth unificado (dual method)
 
 ```
-VITE_SUPABASE_URL=https://uuovdyvfoufjmlnmhzse.supabase.co
-VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV1b3ZkeXZmb3Vmam1sbm1oenNlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0NDI4NTYsImV4cCI6MjA5MjAxODg1Nn0.zxKGR3qgeLy719zO8f4MQb13dyNG9e-KU2PAPS-x9w0
-VITE_ADMIN_EMAIL=gustavomonteiro09g@gmail.com
-VITE_BACKEND_URL=https://SEU-BACKEND-EM-PRODUCAO.com
+Usuário clica "Entrar"
+├── "Continuar com Google"
+│    → redirect para https://auth.emergentagent.com
+│    → volta com #session_id=...
+│    → backend troca por cookie session_token (7d)
+│
+└── Email + senha
+     → Supabase SDK faz login
+     → JWT fica em localStorage do browser
+     → api.ts adiciona "Authorization: Bearer <jwt>" em toda requisição
+     → backend valida chamando Supabase /auth/v1/user
+
+Backend current_user():
+1° tenta cookie session_token (Emergent)
+2° tenta Authorization Bearer (Supabase JWT)
+→ em qualquer caso, upsert profile by email
+→ admin allowlist vale pros 2 caminhos
 ```
-
-> **Observação sobre `VITE_BACKEND_URL`:** é a URL do FastAPI (endpoints `/api/ai/describe`, `/api/ai/badge`, `/api/ai/reply-testimonial`). Enquanto você não publicar o backend em produção pode deixar apontando para a URL pública do Emergent (é só não desligar o preview). Se quiser que as funções de IA parem de funcionar silenciosamente, deixe em branco.
-
-### 3.4. Deploy
-
-Clique em **Deploy**. Em ~1 minuto estará no ar em `https://SEU-PROJETO.vercel.app`.
-
-### 3.5. Domínio próprio
-
-1. Vercel → Project → **Settings → Domains** → **Add**.
-2. Digite seu domínio (ex.: `vitoriamarmitaria.com.br`).
-3. A Vercel mostra os registros DNS que você precisa configurar no seu provedor (Registro.br, GoDaddy, Cloudflare, etc.):
-   - Apex (`vitoriamarmitaria.com.br`): **A** para `76.76.21.21`
-   - Subdomínio `www`: **CNAME** para `cname.vercel-dns.com`
-4. Após DNS propagar (minutos a algumas horas) o SSL é emitido automaticamente.
-
-> **Importante:** depois que o domínio estiver no ar, volte ao Google Cloud Console e ao Supabase e inclua esse domínio nas listas de origens/redirects (passos 2.1.5 e 2.3) — senão o login Google não vai funcionar nele.
 
 ---
 
-## 4) Checklist final
+## 5) Checklist final
 
-- [ ] Schema aplicado no Supabase (`supabase_schema.sql`)
-- [ ] Admin `gustavomonteiro09g@gmail.com` cadastrado e promovido
-- [ ] Google Cloud OAuth criado (Client ID + Secret)
-- [ ] Origens JS e Redirect URI configurados no Google Cloud
-- [ ] Provider Google habilitado no Supabase com Client ID/Secret
-- [ ] URL Configuration do Supabase com Site URL + Redirect URLs
-- [ ] Projeto importado na Vercel com **Root Directory = frontend**
-- [ ] Variáveis de ambiente `VITE_*` adicionadas em Production/Preview
-- [ ] Domínio próprio adicionado e DNS propagado
-- [ ] Domínio próprio incluído nas listas do Google e do Supabase
+- [ ] Schema `/app/supabase_schema.sql` aplicado no Supabase
+- [ ] Backend publicado (Railway/Render) com as 5 env vars obrigatórias
+- [ ] Frontend publicado na Vercel com 3 env vars (URL, ANON, BACKEND)
+- [ ] `VITE_BACKEND_URL` aponta para a URL pública do backend
+- [ ] `CORS_ORIGINS` do backend inclui o domínio do frontend
+- [ ] Supabase → URL Configuration com domínio Vercel + domínio próprio
+- [ ] Testado: login via Google funciona
+- [ ] Testado: cadastro via email/senha funciona (ver email de confirmação se ativado)
+- [ ] Testado: admin login → botão "Painel Admin" aparece

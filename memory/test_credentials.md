@@ -8,15 +8,15 @@ Ambos são promovidos automaticamente a `role='admin'` na primeira entrada via E
 O backend também reconhece esses emails como admin mesmo que a coluna `role` ainda esteja como `user`.
 
 ## Auth
-- **Método único:** Emergent Managed Google Auth (`https://auth.emergentagent.com`)
-- Sem senha. Sem email/senha. Sem OAuth próprio.
-- Sessão de 7 dias armazenada em `public.user_sessions` (Supabase) + cookie `session_token` httpOnly.
+- **Método A — Google (Emergent Managed):** zero config. Cookie `session_token` httpOnly (7d) + `public.user_sessions`.
+- **Método B — Email/Senha (Supabase Auth):** usa o SDK Supabase no frontend; backend valida o JWT chamando `/auth/v1/user`. Upsert automático de profile por email. Ambos os métodos reconhecem os admins da allowlist.
 
 ## Integrações
 - **Supabase URL:** `https://uuovdyvfoufjmlnmhzse.supabase.co`
 - **Supabase Anon Key:** `/app/frontend/.env` → `VITE_SUPABASE_ANON_KEY`
 - **Supabase Service Role Key:** ⚠️ **OBRIGATÓRIO** em `/app/backend/.env` → `SUPABASE_SERVICE_ROLE_KEY`  
   Onde pegar: Supabase Studio → Settings → API → `service_role` (copiar o JWT, NUNCA comitar em git público).
+- **Supabase Anon Key (backend):** também em `/app/backend/.env` → `SUPABASE_ANON_KEY` (mesma chave `anon` usada no frontend; necessária para validar JWTs de email/senha).
 - **Emergent LLM Key:** `/app/backend/.env` → `EMERGENT_LLM_KEY` (já preenchida)
 - **SMTP (opcional, para envio real de emails):** `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` em `/app/backend/.env`. Sem SMTP os emails são logados em dry-run.
 

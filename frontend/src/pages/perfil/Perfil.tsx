@@ -17,11 +17,12 @@ import {
 import TopBar from "../../components/layout/TopBar";
 import { useAuth } from "../../context/AuthContext";
 import { useAppContext } from "../../context/AppContext";
-import { supabase } from "../../lib/supabase";
+import { api } from "../../lib/api";
 import AuthModal from "../../components/auth/AuthModal";
 
 export default function Perfil() {
-  const { user, profile, signOut, refreshProfile, updateProfile, isAdmin } = useAuth();
+  const { user, signOut, refreshProfile, updateProfile, isAdmin } = useAuth();
+  const profile = user;
   const { settings } = useAppContext();
   const fileRef = useRef<HTMLInputElement>(null);
   const [authOpen, setAuthOpen] = useState(false);
@@ -40,12 +41,12 @@ export default function Perfil() {
   const onPickAvatar = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
-    const path = `${user.id}/avatar_${Date.now()}_${file.name}`;
-    const { error } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
-    if (error) return alert("Erro ao enviar: " + error.message);
-    const { data } = supabase.storage.from("avatars").getPublicUrl(path);
-    await updateProfile({ avatar_url: data.publicUrl });
-    await refreshProfile();
+    try {
+      await api.uploadAvatar(file);
+      await refreshProfile();
+    } catch (err: any) {
+      alert("Erro ao enviar: " + (err?.message || err));
+    }
   };
 
   const saveProfile = async () => {
@@ -101,7 +102,7 @@ export default function Perfil() {
                 {profile?.avatar_url ? (
                   <img src={profile.avatar_url} className="w-full h-full object-cover" />
                 ) : (
-                  (profile?.nickname || profile?.full_name || user.email || "?")[0]?.toUpperCase()
+                  (profile?.nickname || profile?.full_name || user?.email || "?")[0]?.toUpperCase()
                 )}
               </div>
               <button
@@ -124,7 +125,7 @@ export default function Perfil() {
                 {profile?.nickname || profile?.full_name || "Você"}
               </p>
               <p className="text-stone-500 font-bold text-sm">@{profile?.username || "usuario"}</p>
-              <p className="text-xs text-stone-400 font-medium truncate">{user.email}</p>
+              <p className="text-xs text-stone-400 font-medium truncate">{user?.email}</p>
               {isAdmin && (
                 <span className="inline-flex items-center gap-1 mt-2 text-[10px] uppercase tracking-widest font-black bg-red-600 text-white px-2 py-1 rounded-full">
                   <Shield className="w-3 h-3" /> Admin

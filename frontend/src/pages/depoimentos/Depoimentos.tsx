@@ -7,6 +7,7 @@ import { useAppContext } from "../../context/AppContext";
 import { useAuth } from "../../context/AuthContext";
 import AuthModal from "../../components/auth/AuthModal";
 import { supabase } from "../../lib/supabase";
+import { api } from "../../lib/api";
 import { cn } from "../../lib/utils";
 
 export default function Depoimentos() {
@@ -47,18 +48,16 @@ export default function Depoimentos() {
       return;
     }
     setSending(true);
-    const { error } = await supabase.from("testimonials").insert({
-      user_id: user.id,
-      rating,
-      content: content.trim() || null,
-    });
-    setSending(false);
-    if (!error) {
+    try {
+      await api.createTestimonial(rating, content.trim() || null);
       setComposerOpen(false);
       setContent("");
       setRating(5);
       refreshTestimonials();
+    } catch (err: any) {
+      alert("Erro: " + (err?.message || err));
     }
+    setSending(false);
   };
 
   return (

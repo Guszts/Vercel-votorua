@@ -6,7 +6,7 @@ import TopBar from "../../components/layout/TopBar";
 import { useAppContext } from "../../context/AppContext";
 import { useAuth } from "../../context/AuthContext";
 import AuthModal from "../../components/auth/AuthModal";
-import { supabase } from "../../lib/supabase";
+import { api } from "../../lib/api";
 import { cn } from "../../lib/utils";
 
 const currency = (v: number) =>
@@ -40,24 +40,22 @@ export default function Historico() {
     }
     if (!cart.length) return;
     setLoading(true);
-    const items = cart.map((i) => ({
-      product_id: i.product.id,
-      name: i.product.name,
-      qty: i.quantity,
-      price: i.unitPrice,
-      ingredients: i.extras?.removedIngredients,
-    }));
-    const { error } = await supabase.from("orders").insert({
-      user_id: user.id,
-      total: cartTotal,
-      items,
-      status: "pending",
-    });
-    setLoading(false);
-    if (!error) {
+    try {
+      const items = cart.map((i) => ({
+        product_id: i.product.id,
+        name: i.product.name,
+        qty: i.quantity,
+        price: i.unitPrice,
+        ingredients: i.extras?.removedIngredients,
+      }));
+      await api.createOrder({ total: cartTotal, items, note: null });
       clearCart();
       await refreshOrders(user.id);
       setTab("pedidos");
+    } catch (err: any) {
+      alert("Erro ao enviar pedido: " + (err?.message || err));
+    } finally {
+      setLoading(false);
     }
   };
 

@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabase";
+import { api } from "../lib/api";
 import type { AppSettings, Product, Testimonial, Order } from "../lib/types";
 import { initialProducts as fallbackProducts } from "../data/products";
 
@@ -171,11 +172,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const saveSettings = useCallback(async (s: AppSettings) => {
-    const { error } = await supabase
-      .from("app_settings")
-      .upsert({ key: "main", value: s, updated_at: new Date().toISOString() });
-    if (!error) setSettings(s);
-    else throw error;
+    await api.updateSettings(s);
+    setSettings(s);
   }, []);
 
   const refreshTestimonials = useCallback(async () => {
@@ -198,10 +196,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const refreshOrders = useCallback(async (userId?: string | null) => {
-    let q = supabase.from("orders").select("*").order("created_at", { ascending: false });
-    if (userId) q = q.eq("user_id", userId);
-    const { data } = await q;
-    if (data) setOrders(data as Order[]);
+    try {
+      if (userId) {
+        const data = await api.listOrders();
+        setOrders(data as Order[]);
+      } else {
+        // admin: list all via service-role not exposed — use supabase anon (public read was off). Fallback: empty.
+        const { data } = await supabase.from("orders").select("*").order("created_at", { ascending: false });
+        if (data) setOrders(data as Order[]);
+      }
+    } catch {
+      setOrders([]);
+    }
   }, []);
 
   useEffect(() => {

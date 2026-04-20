@@ -6,6 +6,7 @@ import Historico from "./pages/historico/Historico";
 import Depoimentos from "./pages/depoimentos/Depoimentos";
 import DepoimentoDetail from "./pages/depoimentos/DepoimentoDetail";
 import Perfil from "./pages/perfil/Perfil";
+import AuthCallback from "./components/auth/AuthCallback";
 import { AppProvider } from "./context/AppContext";
 import { AuthProvider } from "./context/AuthContext";
 import CartDrawer from "./components/feature/CartDrawer";
@@ -15,6 +16,12 @@ import ScrollToHero from "./components/layout/ScrollToHero";
 
 function Shell() {
   const loc = useLocation();
+
+  // CRITICAL: process Emergent Auth session_id BEFORE any route render
+  if (typeof window !== "undefined" && window.location.hash?.includes("session_id=")) {
+    return <AuthCallback />;
+  }
+
   const hideBottomNav = loc.pathname.startsWith("/ajustes");
   return (
     <div className="min-h-screen flex flex-col bg-stone-50 text-stone-900">

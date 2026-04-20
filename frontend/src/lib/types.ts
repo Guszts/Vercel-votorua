@@ -43,8 +43,10 @@ export interface Profile {
   nickname: string | null;
   username: string | null;
   avatar_url: string | null;
+  picture?: string | null;
   role: "admin" | "user";
   loyalty_points: number;
+  is_admin?: boolean;
 }
 
 export interface Testimonial {

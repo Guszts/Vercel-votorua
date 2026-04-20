@@ -1,115 +1,87 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
-import type { Session, User } from "@supabase/supabase-js";
-import { supabase, ADMIN_EMAIL } from "../lib/supabase";
-import type { Profile } from "../lib/types";
+import { api } from "../lib/api";
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  full_name: string | null;
+  nickname: string | null;
+  username: string | null;
+  avatar_url: string | null;
+  role: "admin" | "user";
+  loyalty_points: number;
+  is_admin: boolean;
+}
 
 interface AuthCtx {
-  session: Session | null;
-  user: User | null;
-  profile: Profile | null;
-  isAdmin: boolean;
+  user: AuthUser | null;
   loading: boolean;
-  signInWithEmail: (email: string, password: string) => Promise<{ error?: string }>;
-  signUpWithEmail: (email: string, password: string, fullName: string) => Promise<{ error?: string }>;
-  signInWithGoogle: () => Promise<{ error?: string }>;
+  isAdmin: boolean;
+  signInWithGoogle: () => void;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
-  updateProfile: (patch: Partial<Profile>) => Promise<{ error?: string }>;
+  updateProfile: (patch: Partial<AuthUser>) => Promise<{ error?: string }>;
 }
 
 const Ctx = createContext<AuthCtx | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [session, setSession] = useState<Session | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const loadProfile = useCallback(async (userId: string) => {
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", userId)
-      .maybeSingle();
-    if (error) {
-      console.warn("[auth] profile load error", error.message);
-      setProfile(null);
-      return;
+  const checkAuth = useCallback(async () => {
+    try {
+      const me = await api.me();
+      setUser(me as AuthUser);
+    } catch {
+      setUser(null);
+    } finally {
+      setLoading(false);
     }
-    setProfile(data as Profile | null);
   }, []);
 
   useEffect(() => {
-    let mounted = true;
-    supabase.auth.getSession().then(({ data }) => {
-      if (!mounted) return;
-      setSession(data.session);
-      if (data.session?.user) loadProfile(data.session.user.id).finally(() => setLoading(false));
-      else setLoading(false);
-    });
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, sess) => {
-      setSession(sess);
-      if (sess?.user) loadProfile(sess.user.id);
-      else setProfile(null);
-    });
-    return () => {
-      mounted = false;
-      sub.subscription.unsubscribe();
-    };
-  }, [loadProfile]);
+    // CRITICAL: If returning from OAuth callback, skip the /me check.
+    // AuthCallback will exchange the session_id and establish the session first.
+    if (typeof window !== "undefined" && window.location.hash?.includes("session_id=")) {
+      setLoading(false);
+      return;
+    }
+    checkAuth();
+  }, [checkAuth]);
 
-  const signInWithEmail: AuthCtx["signInWithEmail"] = async (email, password) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return error ? { error: error.message } : {};
-  };
-
-  const signUpWithEmail: AuthCtx["signUpWithEmail"] = async (email, password, fullName) => {
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { data: { full_name: fullName } },
-    });
-    return error ? { error: error.message } : {};
-  };
-
-  const signInWithGoogle: AuthCtx["signInWithGoogle"] = async () => {
+  const signInWithGoogle = useCallback(() => {
     // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
-    const redirectTo = window.location.origin + "/";
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo },
-    });
-    return error ? { error: error.message } : {};
-  };
+    const redirectUrl = window.location.origin + "/";
+    window.location.href =
+      `https://auth.emergentagent.com/?redirect=${encodeURIComponent(redirectUrl)}`;
+  }, []);
 
-  const signOut = async () => {
-    await supabase.auth.signOut();
-  };
+  const signOut = useCallback(async () => {
+    try { await api.logout(); } catch { /* noop */ }
+    setUser(null);
+  }, []);
 
-  const refreshProfile = async () => {
-    if (session?.user) await loadProfile(session.user.id);
-  };
+  const refreshProfile = useCallback(async () => {
+    await checkAuth();
+  }, [checkAuth]);
 
-  const updateProfile: AuthCtx["updateProfile"] = async (patch) => {
-    if (!session?.user) return { error: "not authenticated" };
-    const { error } = await supabase.from("profiles").update(patch).eq("id", session.user.id);
-    if (error) return { error: error.message };
-    await loadProfile(session.user.id);
-    return {};
-  };
-
-  const isAdmin =
-    profile?.role === "admin" || session?.user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+  const updateProfile = useCallback(async (patch: Partial<AuthUser>) => {
+    try {
+      await api.patchProfile(patch);
+      await checkAuth();
+      return {};
+    } catch (e: any) {
+      return { error: e?.message || "Erro ao atualizar" };
+    }
+  }, [checkAuth]);
 
   return (
     <Ctx.Provider
       value={{
-        session,
-        user: session?.user ?? null,
-        profile,
-        isAdmin: !!isAdmin,
+        user,
         loading,
-        signInWithEmail,
-        signUpWithEmail,
+        isAdmin: !!user?.is_admin,
         signInWithGoogle,
         signOut,
         refreshProfile,

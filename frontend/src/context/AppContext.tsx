@@ -1,6 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabase";
-import { api } from "../lib/api";
 import type { AppSettings, Product, Testimonial, Order } from "../lib/types";
 import { initialProducts as fallbackProducts } from "../data/products";
 
@@ -14,22 +13,22 @@ export interface SiteImages {
 
 const defaultSiteImages: SiteImages = {
   heroSlides: [
-    "https://readdy.ai/api/search-image?query=brazilian+food+marmita+lunch+box+rice+beans+meat+salad+overhead&width=1600&height=1200&seq=1&orientation=landscape",
-    "https://readdy.ai/api/search-image?query=brazilian+barbecue+churrasco+grilled+meat+picanha&width=1600&height=1200&seq=2&orientation=landscape",
-    "https://readdy.ai/api/search-image?query=food+delivery+driver+delivering+package+red+helmet&width=1600&height=1200&seq=3&orientation=landscape",
+    "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=1600&h=1200&fit=crop",
+    "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=1600&h=1200&fit=crop",
+    "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=1600&h=1200&fit=crop",
   ],
   bannerBg:
-    "https://readdy.ai/api/search-image?query=restaurant+professional+kitchen+chef+cooking+fire+dynamic&width=1600&height=900&seq=10&orientation=landscape",
+    "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=1600&h=900&fit=crop",
   testimonialsBg:
-    "https://readdy.ai/api/search-image?query=warm+cozy+brazilian+restaurant+interior+blurred+background&width=1600&height=900&seq=16&orientation=landscape",
+    "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=1600&h=900&fit=crop",
   testimonialsAvatars: [
-    "https://readdy.ai/api/search-image?query=portrait+young+brazilian+man+smiling&width=200&height=200&seq=14&orientation=squarish",
-    "https://readdy.ai/api/search-image?query=portrait+young+brazilian+woman+smiling&width=200&height=200&seq=15&orientation=squarish",
+    "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop",
+    "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&h=200&fit=crop",
   ],
   benefitsImages: [
-    "https://readdy.ai/api/search-image?query=fresh+ingredients+vegetables+kitchen+prep+tomatoes+crisp&width=800&height=800&seq=11&orientation=squarish",
-    "https://readdy.ai/api/search-image?query=express+food+delivery+motorcycle+red+delivery+box+motion+blur&width=800&height=800&seq=12&orientation=squarish",
-    "https://readdy.ai/api/search-image?query=variety+of+delicious+brazilian+food+dishes+buffet+overhead&width=800&height=800&seq=13&orientation=squarish",
+    "https://images.unsplash.com/photo-1498837167922-ddd27525d352?w=800&h=800&fit=crop",
+    "https://images.unsplash.com/photo-1526367790999-0150786686a2?w=800&h=800&fit=crop",
+    "https://images.unsplash.com/photo-1504754524776-8f4f37790ca0?w=800&h=800&fit=crop",
   ],
 };
 
@@ -47,11 +46,11 @@ export interface CartExtra {
 }
 
 export interface CartItem {
-  key: string; // uuid-like to support multiple customized entries of the same product
+  key: string;
   product: Product;
   quantity: number;
   extras?: CartExtra;
-  unitPrice: number; // price including extras
+  unitPrice: number;
 }
 
 interface AppCtx {
@@ -86,8 +85,8 @@ function newKey() {
   return "ci_" + Math.random().toString(36).slice(2, 10);
 }
 
-// normalize Supabase product shape to the shape expected by existing components (desc, image, tag)
-function normalize(p: Product): Product {
+// normalize Supabase product shape to the shape expected by existing components
+function normalize(p: any): Product {
   return {
     ...p,
     desc: p.description ?? p.desc ?? "",
@@ -124,7 +123,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
 
-  // persist site images locally
+  // persist site images and cart locally
   useEffect(() => {
     const saved = localStorage.getItem("vitoria_site_images");
     if (saved) {
@@ -139,9 +138,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       } catch { /* ignore */ }
     }
   }, []);
+
   useEffect(() => {
     localStorage.setItem("vitoria_site_images", JSON.stringify(siteImages));
   }, [siteImages]);
+
   useEffect(() => {
     localStorage.setItem("vitoria_cart", JSON.stringify(cart));
   }, [cart]);
@@ -152,60 +153,83 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const { data, error } = await supabase
         .from("products")
         .select("*")
-        .eq("active", true)
-        .order("sort_order", { ascending: true });
+        .eq("is_active", true)
+        .order("created_at", { ascending: false });
+
       if (!error && data && data.length) {
         setProducts(data.map(normalize));
       }
+    } catch (err) {
+      console.error("[v0] Erro ao buscar produtos:", err);
     } finally {
       setLoadingProducts(false);
     }
   }, []);
 
   const refreshSettings = useCallback(async () => {
-    const { data } = await supabase
-      .from("app_settings")
-      .select("value")
-      .eq("key", "main")
-      .maybeSingle();
-    if (data?.value) setSettings({ ...defaultSettings, ...(data.value as AppSettings) });
+    // Settings podem ser armazenados em localStorage por enquanto
+    const saved = localStorage.getItem("vitoria_settings");
+    if (saved) {
+      try {
+        setSettings({ ...defaultSettings, ...JSON.parse(saved) });
+      } catch { /* ignore */ }
+    }
   }, []);
 
   const saveSettings = useCallback(async (s: AppSettings) => {
-    await api.updateSettings(s);
+    localStorage.setItem("vitoria_settings", JSON.stringify(s));
     setSettings(s);
   }, []);
 
   const refreshTestimonials = useCallback(async () => {
-    const { data, error } = await supabase
-      .from("testimonials")
-      .select("id, user_id, rating, content, created_at, profiles!inner(nickname, username, avatar_url, full_name)")
-      .order("created_at", { ascending: false });
-    if (!error && data) {
-      setTestimonials(
-        data.map((t: any) => ({
-          id: t.id,
-          user_id: t.user_id,
-          rating: t.rating,
-          content: t.content,
-          created_at: t.created_at,
-          author: t.profiles,
-        }))
-      );
+    try {
+      const { data, error } = await supabase
+        .from("product_reviews")
+        .select(`
+          id,
+          user_id,
+          rating,
+          comment,
+          created_at,
+          profiles:user_id (nickname, username, avatar_url, full_name)
+        `)
+        .order("created_at", { ascending: false })
+        .limit(20);
+
+      if (!error && data) {
+        setTestimonials(
+          data.map((t: any) => ({
+            id: t.id,
+            user_id: t.user_id,
+            rating: t.rating,
+            content: t.comment,
+            created_at: t.created_at,
+            author: t.profiles || { full_name: "Anônimo" },
+          }))
+        );
+      }
+    } catch (err) {
+      console.error("[v0] Erro ao buscar depoimentos:", err);
     }
   }, []);
 
   const refreshOrders = useCallback(async (userId?: string | null) => {
     try {
+      let query = supabase
+        .from("orders")
+        .select("*")
+        .order("created_at", { ascending: false });
+
       if (userId) {
-        const data = await api.listOrders();
-        setOrders(data as Order[]);
-      } else {
-        // admin: list all via service-role not exposed — use supabase anon (public read was off). Fallback: empty.
-        const { data } = await supabase.from("orders").select("*").order("created_at", { ascending: false });
-        if (data) setOrders(data as Order[]);
+        query = query.eq("user_id", userId);
       }
-    } catch {
+
+      const { data, error } = await query;
+      if (!error && data) {
+        setOrders(data as Order[]);
+      }
+    } catch (err) {
+      console.error("[v0] Erro ao buscar pedidos:", err);
       setOrders([]);
     }
   }, []);

@@ -18,12 +18,16 @@ import ScrollToHero from "./components/layout/ScrollToHero";
 function Shell() {
   const loc = useLocation();
 
-  // CRITICAL: process Emergent Auth session_id BEFORE any route render
-  if (typeof window !== "undefined" && window.location.hash?.includes("session_id=")) {
-    return <AuthCallback />;
+  // Check for Supabase auth callback (code in URL params)
+  if (typeof window !== "undefined") {
+    const params = new URLSearchParams(window.location.search);
+    if (params.has("code") || window.location.hash?.includes("access_token")) {
+      return <AuthCallback />;
+    }
   }
 
   const hideBottomNav = loc.pathname.startsWith("/ajustes") || loc.pathname.startsWith("/setup-sql");
+  
   return (
     <div className="min-h-screen flex flex-col bg-stone-50 text-stone-900">
       <ScrollToHero />
@@ -37,6 +41,7 @@ function Shell() {
           <Route path="/depoimentos/:id" element={<DepoimentoDetail />} />
           <Route path="/perfil" element={<Perfil />} />
           <Route path="/setup-sql" element={<SetupSql />} />
+          <Route path="/auth/callback" element={<AuthCallback />} />
         </Routes>
       </main>
       <CartDrawer />

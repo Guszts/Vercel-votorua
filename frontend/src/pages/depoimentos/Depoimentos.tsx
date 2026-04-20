@@ -7,7 +7,6 @@ import { useAppContext } from "../../context/AppContext";
 import { useAuth } from "../../context/AuthContext";
 import AuthModal from "../../components/auth/AuthModal";
 import { supabase } from "../../lib/supabase";
-import { api } from "../../lib/api";
 import { cn } from "../../lib/utils";
 
 export default function Depoimentos() {
@@ -49,7 +48,13 @@ export default function Depoimentos() {
     }
     setSending(true);
     try {
-      await api.createTestimonial(rating, content.trim() || null);
+      const { error } = await supabase.from("product_reviews").insert({
+        user_id: user.id,
+        product_id: null, // Review geral, não de produto específico
+        rating,
+        comment: content.trim() || null,
+      });
+      if (error) throw error;
       setComposerOpen(false);
       setContent("");
       setRating(5);

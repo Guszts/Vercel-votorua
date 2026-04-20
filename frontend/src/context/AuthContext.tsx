@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
-import { supabase } from "../lib/supabase";
-import { api } from "../lib/api";
+import { supabase, ADMIN_EMAIL } from "../lib/supabase";
 
 export interface AuthUser {
   id: string;
@@ -32,36 +31,101 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const loadUserProfile = useCallback(async (authUserId: string, email: string) => {
+    try {
+      // Buscar ou criar perfil no Supabase
+      let { data: profile, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("email", email)
+        .maybeSingle();
+
+      if (error && error.code !== "PGRST116") {
+        console.error("[v0] Erro ao buscar perfil:", error);
+      }
+
+      // Se não existe, criar
+      if (!profile) {
+        const { data: newProfile, error: insertError } = await supabase
+          .from("profiles")
+          .insert({
+            email,
+            full_name: email.split("@")[0],
+            role: email === ADMIN_EMAIL ? "admin" : "user",
+          })
+          .select()
+          .single();
+
+        if (insertError) {
+          console.error("[v0] Erro ao criar perfil:", insertError);
+          return null;
+        }
+        profile = newProfile;
+      }
+
+      const isAdmin = profile.role === "admin" || email === ADMIN_EMAIL;
+      
+      return {
+        id: profile.id,
+        email: profile.email,
+        full_name: profile.full_name,
+        nickname: profile.nickname,
+        username: profile.username,
+        avatar_url: profile.avatar_url,
+        role: profile.role || "user",
+        loyalty_points: profile.loyalty_points || 0,
+        is_admin: isAdmin,
+      } as AuthUser;
+    } catch (err) {
+      console.error("[v0] Erro ao carregar perfil:", err);
+      return null;
+    }
+  }, []);
+
   const checkAuth = useCallback(async () => {
     try {
-      const me = await api.me();
-      setUser(me as AuthUser);
-    } catch {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session?.user) {
+        const profile = await loadUserProfile(session.user.id, session.user.email || "");
+        setUser(profile);
+      } else {
+        setUser(null);
+      }
+    } catch (err) {
+      console.error("[v0] Erro ao verificar auth:", err);
       setUser(null);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [loadUserProfile]);
 
   useEffect(() => {
-    // CRITICAL: skip the /me check when returning from OAuth callback
-    if (typeof window !== "undefined" && window.location.hash?.includes("session_id=")) {
-      setLoading(false);
-      return;
-    }
     checkAuth();
-    // React to Supabase auth state changes (email login/logout)
-    const { data: sub } = supabase.auth.onAuthStateChange((_event) => {
-      checkAuth();
-    });
-    return () => sub.subscription.unsubscribe();
-  }, [checkAuth]);
 
-  const signInWithGoogle = useCallback(() => {
-    // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
-    const redirectUrl = window.location.origin + "/";
-    window.location.href =
-      `https://auth.emergentagent.com/?redirect=${encodeURIComponent(redirectUrl)}`;
+    const { data: sub } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === "SIGNED_IN" && session?.user) {
+        const profile = await loadUserProfile(session.user.id, session.user.email || "");
+        setUser(profile);
+      } else if (event === "SIGNED_OUT") {
+        setUser(null);
+      }
+      setLoading(false);
+    });
+
+    return () => sub.subscription.unsubscribe();
+  }, [checkAuth, loadUserProfile]);
+
+  const signInWithGoogle = useCallback(async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: window.location.origin,
+      },
+    });
+    if (error) {
+      console.error("[v0] Erro ao fazer login com Google:", error);
+    }
   }, []);
 
   const signInWithEmail: AuthCtx["signInWithEmail"] = useCallback(async (email, password) => {
@@ -72,18 +136,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [checkAuth]);
 
   const signUpWithEmail: AuthCtx["signUpWithEmail"] = useCallback(async (email, password, fullName) => {
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: { data: { full_name: fullName } },
     });
     if (error) return { error: error.message };
+
+    // Criar perfil imediatamente após signup
+    if (data.user) {
+      await supabase.from("profiles").upsert({
+        email,
+        full_name: fullName,
+        role: email === ADMIN_EMAIL ? "admin" : "user",
+      }, { onConflict: "email" });
+    }
+
     return {};
   }, []);
 
   const signOut = useCallback(async () => {
-    try { await supabase.auth.signOut(); } catch { /* noop */ }
-    try { await api.logout(); } catch { /* noop */ }
+    await supabase.auth.signOut();
     setUser(null);
   }, []);
 
@@ -92,14 +165,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [checkAuth]);
 
   const updateProfile = useCallback(async (patch: Partial<AuthUser>) => {
+    if (!user) return { error: "Usuário não logado" };
+    
     try {
-      await api.patchProfile(patch);
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          full_name: patch.full_name,
+          nickname: patch.nickname,
+          username: patch.username,
+          avatar_url: patch.avatar_url,
+        })
+        .eq("id", user.id);
+
+      if (error) return { error: error.message };
       await checkAuth();
       return {};
     } catch (e: any) {
       return { error: e?.message || "Erro ao atualizar" };
     }
-  }, [checkAuth]);
+  }, [user, checkAuth]);
 
   return (
     <Ctx.Provider

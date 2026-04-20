@@ -6,7 +6,7 @@ import TopBar from "../../components/layout/TopBar";
 import { useAppContext } from "../../context/AppContext";
 import { useAuth } from "../../context/AuthContext";
 import AuthModal from "../../components/auth/AuthModal";
-import { api } from "../../lib/api";
+import { supabase } from "../../lib/supabase";
 import { cn } from "../../lib/utils";
 
 const currency = (v: number) =>
@@ -41,14 +41,37 @@ export default function Historico() {
     if (!cart.length) return;
     setLoading(true);
     try {
-      const items = cart.map((i) => ({
+      // Criar pedido no Supabase
+      const { data: order, error: orderError } = await supabase
+        .from("orders")
+        .insert({
+          user_id: user.id,
+          total: cartTotal,
+          subtotal: cartTotal,
+          status: "pending",
+        })
+        .select()
+        .single();
+
+      if (orderError) throw orderError;
+
+      // Criar itens do pedido
+      const orderItems = cart.map((i) => ({
+        order_id: order.id,
         product_id: i.product.id,
-        name: i.product.name,
-        qty: i.quantity,
-        price: i.unitPrice,
-        ingredients: i.extras?.removedIngredients,
+        product_name: i.product.name,
+        product_image: i.product.image_url || i.product.image,
+        quantity: i.quantity,
+        unit_price: i.unitPrice,
+        total_price: i.unitPrice * i.quantity,
       }));
-      await api.createOrder({ total: cartTotal, items, note: null });
+
+      const { error: itemsError } = await supabase
+        .from("order_items")
+        .insert(orderItems);
+
+      if (itemsError) throw itemsError;
+
       clearCart();
       await refreshOrders(user.id);
       setTab("pedidos");

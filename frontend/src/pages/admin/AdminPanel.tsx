@@ -5,7 +5,6 @@ import { ArrowLeft, Plus, Trash2, Save, Image as ImageIcon, Shield, Users, Chart
 import { useAuth } from "../../context/AuthContext";
 import { useAppContext } from "../../context/AppContext";
 import { supabase } from "../../lib/supabase";
-import { api } from "../../lib/api";
 import type { Ingredient, Product, Profile, AppSettings } from "../../lib/types";
 import { cn } from "../../lib/utils";
 
@@ -94,16 +93,18 @@ function ProductsTab({ products, refresh }: { products: Product[]; refresh: () =
 
   const createNew = async () => {
     try {
-      const created: any = await api.createProduct({
-        category: "marmitas",
+      const { data: created, error } = await supabase.from("products").insert({
         name: "Novo Produto",
+        slug: "novo-produto-" + Date.now(),
         description: "Descrição breve",
         price: 20,
         image_url: "https://placehold.co/600x600/dc2626/ffffff?text=Vitoria",
         stock: 50,
-      });
+        is_active: true,
+      }).select().single();
+      if (error) throw error;
       await refresh();
-      setEditing(created);
+      if (created) setEditing(created);
     } catch (e: any) {
       alert(e?.message || "erro");
     }
@@ -111,25 +112,20 @@ function ProductsTab({ products, refresh }: { products: Product[]; refresh: () =
 
   const remove = async (id: string) => {
     if (!confirm("Excluir este produto?")) return;
-    try { await api.deleteProduct(id); await refresh(); } catch (e: any) { alert(e?.message || "erro"); }
+    try { 
+      const { error } = await supabase.from("products").delete().eq("id", id);
+      if (error) throw error;
+      await refresh(); 
+    } catch (e: any) { alert(e?.message || "erro"); }
   };
 
+  // IA features desabilitadas (requerem backend)
   const aiDescribe = async (p: Product) => {
-    setAiLoading(p.id + "-desc");
-    try {
-      const j = await api.aiDescribe(p.name, p.category);
-      if (j.description) { await api.updateProduct(p.id, { description: j.description }); await refresh(); }
-    } catch { /* noop */ }
-    setAiLoading(null);
+    alert("Funcionalidade de IA requer backend configurado.");
   };
 
   const aiBadge = async (p: Product) => {
-    setAiLoading(p.id + "-badge");
-    try {
-      const j = await api.aiBadge(p.name, p.description);
-      if (j.badge) { await api.updateProduct(p.id, { badge: j.badge }); await refresh(); }
-    } catch { /* noop */ }
-    setAiLoading(null);
+    alert("Funcionalidade de IA requer backend configurado.");
   };
 
   return (

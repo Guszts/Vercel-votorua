@@ -17,7 +17,7 @@ import {
 import TopBar from "../../components/layout/TopBar";
 import { useAuth } from "../../context/AuthContext";
 import { useAppContext } from "../../context/AppContext";
-import { api } from "../../lib/api";
+import { supabase } from "../../lib/supabase";
 import AuthModal from "../../components/auth/AuthModal";
 
 export default function Perfil() {
@@ -42,7 +42,20 @@ export default function Perfil() {
     const file = e.target.files?.[0];
     if (!file || !user) return;
     try {
-      await api.uploadAvatar(file);
+      // Upload para Supabase Storage
+      const ext = file.name.split(".").pop();
+      const fileName = `${user.id}-${Date.now()}.${ext}`;
+      const { error: uploadError } = await supabase.storage
+        .from("avatars")
+        .upload(fileName, file, { upsert: true });
+      
+      if (uploadError) throw uploadError;
+      
+      const { data: { publicUrl } } = supabase.storage
+        .from("avatars")
+        .getPublicUrl(fileName);
+      
+      await updateProfile({ avatar_url: publicUrl });
       await refreshProfile();
     } catch (err: any) {
       alert("Erro ao enviar: " + (err?.message || err));

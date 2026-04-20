@@ -1,15 +1,14 @@
 {
-  "name": "react-example",
+  "name": "votorua",
+  "version": "1.0.0",
   "private": true,
-  "version": "0.0.0",
   "type": "module",
+  "description": "Votorua - Aplicativo de vendas",
   "scripts": {
     "dev": "vite --host=0.0.0.0",
-    "start": "vite --host=0.0.0.0",
     "build": "vite build",
     "preview": "vite preview",
-    "clean": "rm -rf dist",
-    "lint": "tsc --noEmit"
+    "start": "vite --host=0.0.0.0"
   },
   "dependencies": {
     "@google/genai": "^1.29.0",
@@ -33,7 +32,6 @@
     "autoprefixer": "^10.4.21",
     "tailwindcss": "^4.1.14",
     "tsx": "^4.21.0",
-    "typescript": "~5.8.2",
-    "vite": "^6.2.0"
+    "typescript": "~5.8.2"
   }
 }

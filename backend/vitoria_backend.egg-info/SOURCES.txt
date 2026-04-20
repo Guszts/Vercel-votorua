@@ -1,0 +1,8 @@
+pyproject.toml
+server.py
+tests/test_backend_api.py
+vitoria_backend.egg-info/PKG-INFO
+vitoria_backend.egg-info/SOURCES.txt
+vitoria_backend.egg-info/dependency_links.txt
+vitoria_backend.egg-info/requires.txt
+vitoria_backend.egg-info/top_level.txt

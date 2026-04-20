@@ -1,11 +1,16 @@
 import { createClient } from "@supabase/supabase-js";
 
-const url = import.meta.env.VITE_SUPABASE_URL as string;
-const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+const url = (import.meta.env.VITE_SUPABASE_URL as string) || "";
+const key = (import.meta.env.VITE_SUPABASE_ANON_KEY as string) || "";
 
-export const supabase = createClient(url, key, {
-  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
-});
+// Create a dummy client if env vars are missing to prevent crashes
+export const supabase = url && key
+  ? createClient(url, key, {
+      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
+    })
+  : createClient("https://placeholder.supabase.co", "placeholder-key", {
+      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    });
 
 // Backend URL resolution order:
 //   1. VITE_BACKEND_URL explicit override (ex: dev tunnel, separate host)

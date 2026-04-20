@@ -96,13 +96,14 @@ export default function Depoimentos() {
         >
           <FilterChip active={filter === "all"} onClick={() => setFilter("all")} label="Todos" testId="filter-all" />
           {[5, 4, 3, 2, 1].map((s) => (
-            <FilterChip
-              key={s}
-              active={filter === s}
-              onClick={() => setFilter(s)}
-              label={`${s}★`}
-              testId={`filter-${s}`}
-            />
+            <div key={`filter-${s}`} className="contents">
+              <FilterChip
+                active={filter === s}
+                onClick={() => setFilter(s)}
+                label={`${s}★`}
+                testId={`filter-${s}`}
+              />
+            </div>
           ))}
         </div>
 

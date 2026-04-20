@@ -1,3 +1,4 @@
+import type { ChangeEvent, ReactNode } from "react";
 import { useState, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "motion/react";
@@ -38,7 +39,7 @@ export default function Perfil() {
       ? { name: "Prata", color: "from-stone-300 to-stone-500" }
       : { name: "Bronze", color: "from-orange-400 to-orange-700" };
 
-  const onPickAvatar = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const onPickAvatar = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
     try {
@@ -276,7 +277,7 @@ function SettingRow({
   label,
   value,
 }: {
-  icon: React.ReactNode;
+  icon: ReactNode;
   label: string;
   value: string;
 }) {

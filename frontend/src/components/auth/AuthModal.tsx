@@ -1,3 +1,4 @@
+import type { FormEvent } from "react";
 import { useState } from "react";
 import { X, Mail, Lock, User as UserIcon } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
@@ -23,7 +24,7 @@ export default function AuthModal({
   const [info, setInfo] = useState<string | null>(null);
   const { signInWithGoogle, signInWithEmail, signUpWithEmail } = useAuth();
 
-  const submit = async (e: React.FormEvent) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
     setError(null); setInfo(null); setLoading(true);
     const res = mode === "login"

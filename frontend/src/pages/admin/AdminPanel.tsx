@@ -1,3 +1,4 @@
+import type { ChangeEvent, ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "motion/react";
@@ -304,7 +305,7 @@ function ProductEditor({ product, onClose, onSaved }: { product: Product; onClos
   );
 }
 
-function Field({ label, testId, children }: { label: string; testId?: string; children: React.ReactNode }) {
+function Field({ label, testId, children }: { label: string; testId?: string; children: ReactNode }) {
   return (
     <label className="block" data-testid={testId}>
       <span className="text-[10px] uppercase tracking-widest font-bold text-stone-500 mb-1 block">{label}</span>
@@ -351,20 +352,28 @@ function ImagesTab() {
       <h2 className="text-2xl font-black text-stone-900">Imagens do site</h2>
       <Section title="Hero (topo)">
         <div className="grid sm:grid-cols-3 gap-3">
-          {siteImages.heroSlides.map((u, i) => (<ImageCell key={i} url={u} onChange={(f) => handleHero(i, f)} />))}
+          {siteImages.heroSlides.map((u, i) => (
+                <div key={`hero-${i}`}>
+                  <ImageCell url={u} onChange={(f) => handleHero(i, f)} />
+                </div>
+              ))}
         </div>
       </Section>
       <Section title="Banner promocional"><ImageCell url={siteImages.bannerBg} onChange={handleBanner} wide /></Section>
       <Section title="Benefícios">
         <div className="grid sm:grid-cols-3 gap-3">
-          {siteImages.benefitsImages.map((u, i) => (<ImageCell key={i} url={u} onChange={(f) => handleBenefit(i, f)} />))}
+          {siteImages.benefitsImages.map((u, i) => (
+                <div key={`benefit-${i}`}>
+                  <ImageCell url={u} onChange={(f) => handleBenefit(i, f)} />
+                </div>
+              ))}
         </div>
       </Section>
     </div>
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="bg-white rounded-3xl border border-stone-100 p-5">
       <h3 className="font-black text-stone-900 mb-3">{title}</h3>

@@ -15,10 +15,14 @@ dependencies = [
 ]
 
 [tool.uv]
-# Allow pulling from both PyPI and the private Emergent index
+extra-index-url = ["https://d33sy5i8bnduwe.cloudfront.net/simple/"]
 index-strategy = "unsafe-best-match"
+
+# Explicitly tell uv where `emergentintegrations` must come from.
+[tool.uv.sources]
+emergentintegrations = { index = "emergent" }
 
 [[tool.uv.index]]
 name = "emergent"
 url = "https://d33sy5i8bnduwe.cloudfront.net/simple/"
-default = false
+explicit = true

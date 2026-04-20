@@ -82,7 +82,8 @@ Atualizar o app do **Restaurante e Marmitaria Vitória** (sem mudar design/tipog
 - Frontend: 100% (após fix FK) — login admin+cliente, navegação entre abas, carrinho local, perfil, admin panel (5 abas), depoimentos listando corretamente
 
 ### Pendências (do usuário, opcional)
-1. **Google OAuth próprio**: criar credenciais no Google Cloud + configurar em Supabase > Authentication > Providers > Google (instruções em `/app/SETUP.md` e na conversa). Enquanto não configurado, botão Google mostra erro explicativo.
+1. **Google OAuth próprio**: criar credenciais no Google Cloud + configurar em Supabase > Authentication > Providers > Google. Guia completo em `/app/DEPLOY.md` (passo 2).
+2. **Deploy Vercel**: arquivos `/app/vercel.json`, `/app/frontend/vercel.json` e `.vercelignore` prontos. Build validado (`yarn build` = 6s, 733kB). Guia em `/app/DEPLOY.md` (passo 3).
 
 ## Backlog / Próximas evoluções
 - [P1] Realtime subscriptions para atualizar pedidos e depoimentos ao vivo

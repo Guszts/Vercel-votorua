@@ -13,7 +13,7 @@ import requests
 
 BASE_URL = os.environ.get(
     "REACT_APP_BACKEND_URL",
-    "https://75c38e40-ecce-413b-8a11-bccbd9913954.preview.emergentagent.com",
+    "https://google-auth-setup-5.preview.emergentagent.com",
 ).rstrip("/")
 
 

@@ -1,120 +1,140 @@
-# Vitória — Deploy Vercel + Credenciais
+# Vitória — Deploy Vercel (modo multi-serviço experimental)
 
-## Arquitetura de deploy
-- **Frontend (Vite/React)** → Vercel
-- **Backend (FastAPI)** → Railway / Render / Fly.io (Vercel não roda FastAPI de forma adequada)
-- **Supabase** → já está em produção
+## 📁 Arquivos de configuração
+
+### `/app/vercel.json` (raiz — **este é o importante**)
+```json
+{
+  "experimentalServices": {
+    "frontend": {
+      "entrypoint": "frontend",
+      "routePrefix": "/",
+      "framework": "vite"
+    },
+    "backend": {
+      "entrypoint": "backend",
+      "routePrefix": "/_/backend"
+    }
+  }
+}
+```
+
+Com isso:
+- **Frontend** (Vite/React) é servido em `https://SEU-APP.vercel.app/`
+- **Backend** (FastAPI) é servido em `https://SEU-APP.vercel.app/_/backend/api/...`
+- Mesma origem → **não precisa** configurar CORS no backend
+- **Não precisa** de `VITE_BACKEND_URL` no Vercel — o frontend detecta o caminho `/_/backend` automaticamente em produção
+
+### `/app/frontend/vercel.json`
+Configurações específicas do Vite (rewrites SPA, headers de cache, manifest PWA). Atualizado para ignorar `/_/` (backend) nos rewrites.
+
+### `/app/backend/vercel.json`
+```json
+{
+  "builds": [{ "src": "server.py", "use": "@vercel/python" }],
+  "routes": [{ "src": "/(.*)", "dest": "server.py" }]
+}
+```
+Faz a Vercel usar o runtime Python com `server.py` como ponto de entrada (FastAPI app).
 
 ---
 
-## 1) Frontend na Vercel
+## 🌱 Variáveis de ambiente
 
-### Build settings (tela de importação do projeto)
-| Campo | Valor |
+### Frontend (Vercel → Settings → Environment Variables)
+Marque as 3 caixas **Production / Preview / Development** para cada uma:
+
+| Nome | Valor |
 |---|---|
-| **Framework Preset** | `Vite` (detectado automaticamente) |
-| **Root Directory** | `frontend` |
-| **Build Command** | `yarn build` |
-| **Output Directory** | `dist` |
-| **Install Command** | `yarn install --frozen-lockfile` |
-| **Node.js Version** | `20.x` |
+| `VITE_SUPABASE_URL` | `https://uuovdyvfoufjmlnmhzse.supabase.co` |
+| `VITE_SUPABASE_ANON_KEY` | `eyJhbGciOi...x9w0` (copie de `/app/frontend/.env`) |
+| `VITE_ADMIN_EMAIL` | `gustavomonteiro09g@gmail.com` |
 
-Os arquivos `/app/vercel.json` (raiz) e `/app/frontend/vercel.json` já configuram isso automaticamente — Vercel vai respeitá-los.
+> **Não adicione `VITE_BACKEND_URL`**. Sem essa variável o frontend usa `/_/backend` automaticamente (caminho relativo, mesma origem).
+>
+> Se for rodar o backend separado (Railway/Render), aí sim: `VITE_BACKEND_URL=https://sua-api.railway.app`.
 
-### Variáveis de ambiente do frontend
-Adicione em **Settings → Environment Variables** para Production, Preview e Development:
+### Backend (Vercel → Settings → Environment Variables)
+Como os dois serviços dividem as env vars do projeto, coloque todas juntas:
 
-| Nome | Valor | Obs |
-|---|---|---|
-| `VITE_SUPABASE_URL` | `https://uuovdyvfoufjmlnmhzse.supabase.co` | URL do seu projeto Supabase |
-| `VITE_SUPABASE_ANON_KEY` | (copie de `/app/frontend/.env`) | chave pública `anon` — pode ir em client |
-| `VITE_BACKEND_URL` | `https://sua-api-vitoria.up.railway.app` | URL do backend FastAPI em produção (ver seção 2) |
-| `VITE_ADMIN_EMAIL` | `gustavomonteiro09g@gmail.com` | opcional, usado só como fallback |
+| Nome | Valor |
+|---|---|
+| `EMERGENT_LLM_KEY` | `sk-emergent-7Ea75A099F5FfEc8fE` |
+| `SUPABASE_URL` | `https://uuovdyvfoufjmlnmhzse.supabase.co` |
+| `SUPABASE_ANON_KEY` | `eyJhbGci...x9w0` (mesma do frontend) |
+| `SUPABASE_SERVICE_ROLE_KEY` | `eyJhbGci...9eMo` (**SECRET**, só em Production/Preview) |
+| `CORS_ORIGINS` | `*` (mesma origem, não é crítico) |
 
-> Não precisa de nenhuma variável de Google OAuth aqui. A auth via Google usa **Emergent** (URL hardcoded) e a auth via email usa o SDK Supabase (que lê VITE_SUPABASE_URL/ANON).
-
----
-
-## 2) Backend na Railway (recomendado) / Render / Fly
-
-### Variáveis de ambiente do backend
-
-| Nome | Obrigatório? | Valor / Onde pegar |
-|---|---|---|
-| `SUPABASE_URL` | ✅ | `https://uuovdyvfoufjmlnmhzse.supabase.co` |
-| `SUPABASE_SERVICE_ROLE_KEY` | ✅ | Supabase → Settings → API → `service_role` (JWT longo, SECRET) |
-| `SUPABASE_ANON_KEY` | ✅ (para login email) | Supabase → Settings → API → `anon` / `public` |
-| `EMERGENT_LLM_KEY` | ✅ | `sk-emergent-7Ea75A099F5FfEc8fE` (já disponível) |
-| `CORS_ORIGINS` | ✅ | `https://SEU-DOMINIO.com,https://SEU-PROJETO.vercel.app` (vírgula separa; use `*` só em testes) |
-| `MONGO_URL` | opcional | não usado atualmente (legado) |
-| `DB_NAME` | opcional | idem |
-| `SMTP_HOST` | opcional | `smtp.resend.com` / `smtp.sendgrid.net` / `smtp.gmail.com` |
-| `SMTP_PORT` | opcional | `587` (TLS) |
-| `SMTP_USER` | opcional | usuário SMTP |
-| `SMTP_PASS` | opcional | senha/API key SMTP |
-| `SMTP_FROM` | opcional | `Vitória <no-reply@seu-dominio.com>` |
-
-### Build / Start Commands (Railway)
-- **Install:** `pip install -r backend/requirements.txt`
-- **Start:** `uvicorn backend.server:app --host 0.0.0.0 --port ${PORT:-8001}`
-- **Root Directory (Railway):** raiz do repositório (`/`) — **não** `backend`, porque `emails/` fica na raiz
+**Opcionais** (emails SMTP reais):
+| Nome | Valor |
+|---|---|
+| `SMTP_HOST` | ex: `smtp.resend.com` |
+| `SMTP_PORT` | `587` |
+| `SMTP_USER` | usuário/API key |
+| `SMTP_PASS` | senha/API secret |
+| `SMTP_FROM` | `Vitória <no-reply@seu-dominio.com>` |
 
 ---
 
-## 3) Passos de configuração obrigatórios após o deploy
+## 🚀 Como importar na Vercel
 
-### Supabase
-1. **SQL Editor** → rodar `/app/supabase_schema.sql`
-2. **Authentication → Providers → Email** → **Enable** (normalmente já vem ligado)
-3. **Authentication → URL Configuration** → adicionar em **Redirect URLs**:
-   ```
-   https://SEU-DOMINIO.com/**
-   https://SEU-PROJETO.vercel.app/**
-   http://localhost:3000/**
-   ```
-4. **Authentication → Email Templates** (opcional): customize o template de confirmação para combinar com a marca. Os templates HTML em `/app/emails/` são usados apenas pelos emails do **backend** (order confirmation etc), não pelos emails do Supabase Auth (confirmação, reset de senha).
-
-### Google (Emergent)
-Nada a configurar. Emergent gerencia todo o OAuth.
-
-### Admin
-- `gustavomonteiro09g@gmail.com` e `gustavomonte10g@gmail.com` são **sempre** admin pela allowlist no backend, independentemente de terem entrado via email ou Google.
-- Se um desses emails se cadastrar via email/senha no Supabase, pode ser necessário clicar no link de confirmação enviado por email (a menos que você desative "Confirm email" em Supabase → Authentication → Providers → Email).
+1. Acesse https://vercel.com/new
+2. Conecte seu GitHub (use **Save to GitHub** no chat do Emergent antes)
+3. Selecione o repo
+4. **Root Directory:** `./` (raiz — NÃO aponte para `frontend`, porque o `vercel.json` da raiz controla tudo)
+5. Aba **Environment Variables**: cole todas as variáveis acima
+6. Clique **Deploy**. Vercel detecta `experimentalServices` e sobe 2 serviços em ~1 min.
 
 ---
 
-## 4) Fluxo de auth unificado (dual method)
+## ✅ Validação pós-deploy
 
-```
-Usuário clica "Entrar"
-├── "Continuar com Google"
-│    → redirect para https://auth.emergentagent.com
-│    → volta com #session_id=...
-│    → backend troca por cookie session_token (7d)
-│
-└── Email + senha
-     → Supabase SDK faz login
-     → JWT fica em localStorage do browser
-     → api.ts adiciona "Authorization: Bearer <jwt>" em toda requisição
-     → backend valida chamando Supabase /auth/v1/user
+```bash
+# 1. Frontend
+curl https://SEU-APP.vercel.app/
+# deve retornar HTML do Vite
 
-Backend current_user():
-1° tenta cookie session_token (Emergent)
-2° tenta Authorization Bearer (Supabase JWT)
-→ em qualquer caso, upsert profile by email
-→ admin allowlist vale pros 2 caminhos
+# 2. Backend
+curl https://SEU-APP.vercel.app/_/backend/api/health
+# deve retornar {"status":"ok","supabase_configured":true,"auth_methods":["google_emergent","email_supabase"]}
+
+# 3. Produtos do Supabase via frontend
+curl "https://uuovdyvfoufjmlnmhzse.supabase.co/rest/v1/products?select=id,name&limit=3" \
+  -H "apikey: <VITE_SUPABASE_ANON_KEY>"
 ```
 
 ---
 
-## 5) Checklist final
+## 🧭 Domínio próprio
 
-- [ ] Schema `/app/supabase_schema.sql` aplicado no Supabase
-- [ ] Backend publicado (Railway/Render) com as 5 env vars obrigatórias
-- [ ] Frontend publicado na Vercel com 3 env vars (URL, ANON, BACKEND)
-- [ ] `VITE_BACKEND_URL` aponta para a URL pública do backend
-- [ ] `CORS_ORIGINS` do backend inclui o domínio do frontend
-- [ ] Supabase → URL Configuration com domínio Vercel + domínio próprio
-- [ ] Testado: login via Google funciona
-- [ ] Testado: cadastro via email/senha funciona (ver email de confirmação se ativado)
-- [ ] Testado: admin login → botão "Painel Admin" aparece
+1. Vercel → Project → **Settings → Domains → Add**
+2. Digite `vitoriamarmitaria.com.br`
+3. DNS no seu provedor:
+   - Apex (`vitoria...br`): **A** `76.76.21.21`
+   - `www`: **CNAME** `cname.vercel-dns.com`
+4. SSL automático após propagação
+
+## 🔐 Supabase URL Configuration (pós-deploy)
+**Authentication → URL Configuration → Redirect URLs** — adicione:
+```
+https://SEU-APP.vercel.app/**
+https://SEU-DOMINIO.com.br/**
+https://www.SEU-DOMINIO.com.br/**
+http://localhost:3000/**
+```
+
+---
+
+## 🗂️ Estrutura final
+```
+/app
+├── vercel.json                  ← experimentalServices (raiz)
+├── frontend/
+│   ├── vercel.json              ← Vite SPA config
+│   ├── package.json
+│   └── src/...
+└── backend/
+    ├── vercel.json              ← @vercel/python runtime
+    ├── requirements.txt
+    └── server.py                ← FastAPI app
+```

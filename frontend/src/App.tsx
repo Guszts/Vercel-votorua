@@ -6,6 +6,7 @@ import Historico from "./pages/historico/Historico";
 import Depoimentos from "./pages/depoimentos/Depoimentos";
 import DepoimentoDetail from "./pages/depoimentos/DepoimentoDetail";
 import Perfil from "./pages/perfil/Perfil";
+import SetupSql from "./pages/setup/SetupSql";
 import AuthCallback from "./components/auth/AuthCallback";
 import { AppProvider } from "./context/AppContext";
 import { AuthProvider } from "./context/AuthContext";
@@ -22,7 +23,7 @@ function Shell() {
     return <AuthCallback />;
   }
 
-  const hideBottomNav = loc.pathname.startsWith("/ajustes");
+  const hideBottomNav = loc.pathname.startsWith("/ajustes") || loc.pathname.startsWith("/setup-sql");
   return (
     <div className="min-h-screen flex flex-col bg-stone-50 text-stone-900">
       <ScrollToHero />
@@ -35,6 +36,7 @@ function Shell() {
           <Route path="/depoimentos" element={<Depoimentos />} />
           <Route path="/depoimentos/:id" element={<DepoimentoDetail />} />
           <Route path="/perfil" element={<Perfil />} />
+          <Route path="/setup-sql" element={<SetupSql />} />
         </Routes>
       </main>
       <CartDrawer />
